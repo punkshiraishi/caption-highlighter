@@ -7,6 +7,16 @@ export interface CaptionObserverOptions {
 
 export type CaptionListener = (element: HTMLElement) => void
 
+export const DEFAULT_CAPTION_SELECTORS = [
+  'div[role="region"][aria-label*="字幕"]',
+  'div[role="region"][aria-label*="captions" i]',
+  'div[jscontroller="KPn5nb"][role="region"]',
+  'div[aria-live="assertive"]',
+  'div[aria-live="polite"]',
+  'c-wiz[aria-live="assertive"]',
+  'div[jsname="YRMmle"]',
+]
+
 const CAPTION_DATA_ATTRIBUTE = 'data-ch-caption'
 
 export class CaptionObserver {
@@ -54,23 +64,53 @@ export class CaptionObserver {
   }
 
   private tryAttach() {
-    if (this.container && document.contains(this.container))
-      return
+    if (this.container && !document.contains(this.container))
+      this.container = null
 
     const next = this.findContainer()
-    if (!next)
+    if (!next || next === this.container)
       return
 
     this.attachTo(next)
   }
 
   private findContainer(): HTMLElement | null {
+    const seen = new Set<HTMLElement>()
+    const candidates: HTMLElement[] = []
+
     for (const selector of this.selectors) {
-      const candidate = document.querySelector<HTMLElement>(selector)
-      if (candidate)
+      const matches = document.querySelectorAll<HTMLElement>(selector)
+      matches.forEach((element) => {
+        if (!seen.has(element)) {
+          seen.add(element)
+          candidates.push(element)
+        }
+      })
+    }
+
+    for (const candidate of candidates) {
+      if (this.isCaptionContainer(candidate))
         return candidate
     }
-    return null
+
+    return candidates[0] ?? null
+  }
+
+  private isCaptionContainer(element: HTMLElement): boolean {
+    if (!element.isConnected)
+      return false
+
+    if (element.getAttribute('aria-hidden') === 'true')
+      return false
+
+    if (element.querySelector('.ygicle, .VbkSUe, [data-language-code]'))
+      return true
+
+    const rect = element.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0)
+      return false
+
+    return Boolean(element.textContent?.trim())
   }
 
   private attachTo(container: HTMLElement) {

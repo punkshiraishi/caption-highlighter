@@ -1,17 +1,10 @@
 import './styles.css'
 import 'uno.css'
-import { CaptionObserver } from './dom/caption-observer'
+import { CaptionObserver, DEFAULT_CAPTION_SELECTORS } from './dom/caption-observer'
 import { CaptionHighlighter, applyThemeVariables } from './highlight/highlighter'
 import { TooltipController } from './highlight/tooltip'
-import { applyUserSettingsDefaults, type UserSettings } from '~/shared/models/settings'
+import { type UserSettings, applyUserSettingsDefaults } from '~/shared/models/settings'
 import { loadUserSettings, observeSettings } from '~/shared/storage/settings'
-
-const CAPTION_SELECTORS = [
-  'div[aria-live="assertive"]',
-  'div[aria-live="polite"]',
-  'c-wiz[aria-live="assertive"]',
-  'div[jsname="YRMmle"]',
-]
 
 let currentSettings: UserSettings = applyUserSettingsDefaults({})
 
@@ -24,7 +17,7 @@ const highlighter = new CaptionHighlighter({
 })
 
 const observer = new CaptionObserver({
-  selectors: CAPTION_SELECTORS,
+  selectors: DEFAULT_CAPTION_SELECTORS,
   debounceMs: currentSettings.matching.debounceMs,
 })
 
