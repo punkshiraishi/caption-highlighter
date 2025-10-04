@@ -1,8 +1,8 @@
+import { CAPTION_NODE_ATTRIBUTE } from '../dom/caption-observer'
+import type { TooltipController } from './tooltip'
 import type { DictionaryEntry } from '~/shared/models/dictionary'
 import type { MatchingSettings, ThemeSettings, UserSettings } from '~/shared/models/settings'
-import { createMatcher, type Matcher, type MatchResult } from '~/shared/matching/matcher'
-import type { TooltipController } from './tooltip'
-import { CAPTION_NODE_ATTRIBUTE } from '../dom/caption-observer'
+import { type MatchResult, type Matcher, createMatcher } from '~/shared/matching/matcher'
 
 const PROCESSED_ATTRIBUTE = 'data-ch-processed-version'
 const HIGHLIGHT_CLASS = 'caption-highlighter__match'
@@ -129,6 +129,7 @@ export class CaptionHighlighter {
     span.dataset.chEntryId = match.entry.id
     span.setAttribute('role', 'note')
     span.setAttribute('aria-label', `${match.entry.term}: ${match.entry.definition}`)
+    span.title = `${match.entry.term}: ${match.entry.definition}`
 
     const entry = this.entryIndex.get(match.entry.id) ?? match.entry
     this.tooltip.register(span, entry)

@@ -14,6 +14,10 @@
   padding: 0 0.15em;
   cursor: pointer;
   transition: box-shadow 140ms ease-in-out;
+  position: relative;
+  z-index: 2147483646;
+  display: inline-block;
+  pointer-events: auto;
 }
 
 .caption-highlighter__match:focus-visible {

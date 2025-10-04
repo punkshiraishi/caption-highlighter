@@ -20,6 +20,7 @@ export class TooltipController {
     this.tooltipEl.style.pointerEvents = 'none'
     this.tooltipEl.style.opacity = '0'
     this.tooltipEl.style.transition = 'opacity 120ms ease-in-out'
+    this.tooltipEl.style.visibility = 'hidden'
 
     this.termEl = document.createElement('div')
     this.termEl.className = 'caption-highlighter__tooltip-term'
@@ -56,8 +57,12 @@ export class TooltipController {
 
     element.addEventListener('mouseenter', show)
     element.addEventListener('focus', show)
+    element.addEventListener('pointerenter', show)
     element.addEventListener('mouseleave', hide)
     element.addEventListener('blur', hide)
+    element.addEventListener('pointerleave', hide)
+    element.addEventListener('touchstart', show, { passive: true })
+    element.addEventListener('touchend', hide, { passive: true })
 
     element.addEventListener('keydown', (event) => {
       if (event instanceof KeyboardEvent && (event.key === 'Escape' || event.key === 'Esc'))
@@ -70,12 +75,14 @@ export class TooltipController {
     this.definitionEl.textContent = entry.definition
 
     this.tooltipEl.style.opacity = '1'
+    this.tooltipEl.style.visibility = 'visible'
 
     this.positionTooltip(element)
   }
 
   private hideTooltip() {
     this.tooltipEl.style.opacity = '0'
+    this.tooltipEl.style.visibility = 'hidden'
   }
 
   private positionTooltip(element: HTMLElement) {
