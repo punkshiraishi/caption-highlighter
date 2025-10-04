@@ -1,68 +1,10 @@
-<template>
-  <main class="options" v-if="!store.loading">
-    <header class="options__header">
-      <div>
-        <h1>Caption Highlighter</h1>
-        <p class="options__subtitle">Google Meet の字幕をリアルタイムにハイライトします。</p>
-      </div>
-      <button class="button button--secondary" type="button" @click="handleReset">辞書をすべて削除</button>
-    </header>
-
-    <section class="panel">
-      <header class="panel__header">
-        <div>
-          <h2>辞書</h2>
-          <p class="panel__subtitle">用語と説明を管理します。CSV からの取り込みに対応しています。</p>
-        </div>
-        <button class="button" type="button" @click="triggerFile">CSV をインポート</button>
-        <input ref="fileInput" class="sr-only" type="file" accept="text/csv" @change="handleFileSelected">
-      </header>
-
-      <div class="dictionary__toolbar">
-        <label class="dictionary__search">
-          <span>検索</span>
-          <input type="search" placeholder="用語または説明" v-model="filter">
-        </label>
-        <span class="dictionary__count">{{ store.filteredEntries.length }} 件</span>
-      </div>
-
-      <DictionaryTable :entries="store.filteredEntries" @remove="store.removeEntry" />
-      <ImportPreview
-        v-if="hasPreview"
-        :headers="headers"
-        :rows="csvRows"
-        v-model:term="selection.term"
-        v-model:definition="selection.definition"
-        :stats="stats"
-        :error="importError"
-        @confirm="confirmImport"
-        @cancel="clearPreview"
-      />
-      <p v-else-if="importError" class="import-error">{{ importError }}</p>
-    </section>
-
-    <section class="panel">
-      <h2>マッチング設定</h2>
-      <MatchingSettingsForm :value="store.matching" @change="store.updateMatching" />
-    </section>
-
-    <section class="panel">
-      <h2>テーマ</h2>
-      <ThemeSettingsForm :value="store.theme" @change="store.updateTheme" />
-    </section>
-  </main>
-  <div v-else class="loading">設定を読込中...</div>
-</template>
-
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import DictionaryTable from './components/DictionaryTable.vue'
 import ImportPreview from './components/ImportPreview.vue'
-import MatchingSettingsForm from './components/MatchingSettingsForm.vue'
-import ThemeSettingsForm from './components/ThemeSettingsForm.vue'
 import { useSettingsStore } from './stores/settings'
 import type { DictionaryImportStats } from '~/shared/utils/csv'
-import { parseCsv, buildDictionaryFromCsv } from '~/shared/utils/csv'
+import { buildDictionaryFromCsv, parseCsv } from '~/shared/utils/csv'
 
 const store = useSettingsStore()
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -135,7 +77,7 @@ async function handleFileSelected(event: Event) {
   }
 }
 
-async function confirmImport(columns: { term: string; definition: string }) {
+async function confirmImport(columns: { term: string, definition: string }) {
   if (!csvRows.value.length)
     return
 
@@ -155,10 +97,69 @@ async function confirmImport(columns: { term: string; definition: string }) {
 }
 
 async function handleReset() {
+  // eslint-disable-next-line no-alert
   if (window.confirm('辞書をすべて削除しますか？'))
     await store.clearDictionary()
 }
 </script>
+
+<template>
+  <main v-if="!store.loading" class="options">
+    <header class="options__header">
+      <div>
+        <h1>Caption Highlighter</h1>
+        <p class="options__subtitle">
+          Google Meet の字幕をリアルタイムにハイライトします。
+        </p>
+      </div>
+      <button class="button button--secondary" type="button" @click="handleReset">
+        辞書をすべて削除
+      </button>
+    </header>
+
+    <section class="panel">
+      <header class="panel__header">
+        <div>
+          <h2>辞書</h2>
+          <p class="panel__subtitle">
+            用語と説明を管理します。CSV からの取り込みに対応しています。
+          </p>
+        </div>
+        <button class="button" type="button" @click="triggerFile">
+          CSV をインポート
+        </button>
+        <input ref="fileInput" class="sr-only" type="file" accept="text/csv" @change="handleFileSelected">
+      </header>
+
+      <div class="dictionary__toolbar">
+        <label class="dictionary__search">
+          <span>検索</span>
+          <input v-model="filter" type="search" placeholder="用語または説明">
+        </label>
+        <span class="dictionary__count">{{ store.filteredEntries.length }} 件</span>
+      </div>
+
+      <DictionaryTable :entries="store.filteredEntries" @remove="store.removeEntry" />
+      <ImportPreview
+        v-if="hasPreview"
+        v-model:term="selection.term"
+        v-model:definition="selection.definition"
+        :headers="headers"
+        :rows="csvRows"
+        :stats="stats"
+        :error="importError"
+        @confirm="confirmImport"
+        @cancel="clearPreview"
+      />
+      <p v-else-if="importError" class="import-error">
+        {{ importError }}
+      </p>
+    </section>
+  </main>
+  <div v-else class="loading">
+    設定を読込中...
+  </div>
+</template>
 
 <style scoped>
 .options {
