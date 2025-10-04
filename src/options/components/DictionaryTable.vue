@@ -1,29 +1,3 @@
-<template>
-  <div class="dictionary-table">
-    <table>
-      <thead>
-        <tr>
-          <th>用語</th>
-          <th>説明</th>
-          <th class="actions">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="entry in entries" :key="entry.id">
-          <td class="term">{{ entry.term }}</td>
-          <td>{{ entry.definition }}</td>
-          <td class="actions">
-            <button type="button" class="link" @click="$emit('remove', entry.id)">削除</button>
-          </td>
-        </tr>
-        <tr v-if="!entries.length">
-          <td colspan="3" class="empty">登録された用語がありません。</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</template>
-
 <script setup lang="ts">
 import type { DictionaryEntry } from '~/shared/models/dictionary'
 
@@ -31,6 +5,42 @@ defineProps<{ entries: DictionaryEntry[] }>()
 
 defineEmits<{ (event: 'remove', id: string): void }>()
 </script>
+
+<template>
+  <div class="dictionary-table">
+    <table>
+      <thead>
+        <tr>
+          <th>用語</th>
+          <th>説明</th>
+          <th class="actions">
+            操作
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="entry in entries" :key="entry.id">
+          <td class="term">
+            {{ entry.term }}
+          </td>
+          <td class="definition">
+            {{ entry.definition }}
+          </td>
+          <td class="actions">
+            <button type="button" class="link" @click="$emit('remove', entry.id)">
+              削除
+            </button>
+          </td>
+        </tr>
+        <tr v-if="!entries.length">
+          <td colspan="3" class="empty">
+            登録された用語がありません。
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
 
 <style scoped>
 .dictionary-table {
@@ -63,6 +73,11 @@ tr:nth-child(even) td {
   font-weight: 600;
   color: #e0f2fe;
   width: 25%;
+  white-space: pre-wrap;
+}
+
+.definition {
+  white-space: pre-wrap;
 }
 
 .actions {

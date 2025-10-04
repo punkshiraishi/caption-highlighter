@@ -1,45 +1,3 @@
-<template>
-  <div class="import-preview">
-    <h3>CSV プレビュー</h3>
-
-    <div class="import-preview__controls">
-      <label>
-        用語列
-        <select v-model="termModel">
-          <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
-        </select>
-      </label>
-      <label>
-        説明列
-        <select v-model="definitionModel">
-          <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
-        </select>
-      </label>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th v-for="header in headers" :key="header">{{ header }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(row, index) in previewRows" :key="index">
-          <td v-for="header in headers" :key="header">{{ row[header] }}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p v-if="error" class="import-preview__error">{{ error }}</p>
-    <p v-else-if="stats" class="import-preview__stats">{{ stats.added }} 件を追加、{{ stats.skipped }} 行をスキップします。</p>
-
-    <div class="import-preview__actions">
-      <button class="button" type="button" :disabled="!canImport" @click="handleConfirm">読み込む</button>
-      <button class="button button--secondary" type="button" @click="$emit('cancel')">キャンセル</button>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CsvPreviewRow, DictionaryImportStats } from '~/shared/utils/csv'
@@ -53,7 +11,7 @@ const props = defineProps<{
   error: string | null
 }>()
 
-const emit = defineEmits<{ (event: 'confirm', payload: { term: string; definition: string }): void; (event: 'cancel'): void }>()
+const emit = defineEmits<{ (event: 'confirm', payload: { term: string, definition: string }): void, (event: 'cancel'): void }>()
 
 const termModel = defineModel<string>('term', { required: true })
 const definitionModel = defineModel<string>('definition', { required: true })
@@ -78,6 +36,60 @@ function handleConfirm() {
   emit('confirm', { term: termModel.value, definition: definitionModel.value })
 }
 </script>
+
+<template>
+  <div class="import-preview">
+    <h3>CSV プレビュー</h3>
+
+    <div class="import-preview__controls">
+      <label>
+        用語列
+        <select v-model="termModel">
+          <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
+        </select>
+      </label>
+      <label>
+        説明列
+        <select v-model="definitionModel">
+          <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
+        </select>
+      </label>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th v-for="header in headers" :key="header">
+            {{ header }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(row, index) in previewRows" :key="index">
+          <td v-for="header in headers" :key="header">
+            {{ row[header] }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p v-if="error" class="import-preview__error">
+      {{ error }}
+    </p>
+    <p v-else-if="stats" class="import-preview__stats">
+      {{ stats.added }} 件を追加、{{ stats.skipped }} 行をスキップします。
+    </p>
+
+    <div class="import-preview__actions">
+      <button class="button" type="button" :disabled="!canImport" @click="handleConfirm">
+        読み込む
+      </button>
+      <button class="button button--secondary" type="button" @click="$emit('cancel')">
+        キャンセル
+      </button>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .import-preview {
@@ -122,6 +134,10 @@ td {
   border: 1px solid rgba(100, 116, 139, 0.4);
   padding: 8px;
   text-align: left;
+}
+
+td {
+  white-space: pre-wrap;
 }
 
 .import-preview__actions {
