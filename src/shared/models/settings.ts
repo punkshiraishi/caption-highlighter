@@ -47,7 +47,19 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
 
 export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): UserSettings {
   return {
-    dictionary: partial?.dictionary ? { entries: [...partial.dictionary.entries] } : { entries: [...DEFAULT_DICTIONARY_STATE.entries] },
+    dictionary: partial?.dictionary
+      ? {
+          entries: partial.dictionary.entries.map(entry => ({
+            ...entry,
+            aliases: [...(entry.aliases ?? [])],
+          })),
+        }
+      : {
+          entries: DEFAULT_DICTIONARY_STATE.entries.map(entry => ({
+            ...entry,
+            aliases: [...(entry.aliases ?? [])],
+          })),
+        },
     matching: { ...DEFAULT_MATCHING_SETTINGS, ...partial?.matching },
     theme: { ...DEFAULT_THEME_SETTINGS, ...partial?.theme },
   }

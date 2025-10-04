@@ -14,13 +14,19 @@ export interface StoredSettingsPayload {
 }
 
 function cloneEntries(entries: DictionaryEntry[]): DictionaryEntry[] {
-  return entries.map(entry => ({ ...entry }))
+  return entries.map(entry => ({
+    ...entry,
+    aliases: [...(entry.aliases ?? [])],
+  }))
 }
 
 function normalizeSettings(settings: UserSettings): UserSettings {
   return {
     dictionary: {
-      entries: mergeDictionaryEntries([], settings.dictionary.entries),
+      entries: mergeDictionaryEntries([], settings.dictionary.entries.map(entry => ({
+        ...entry,
+        aliases: [...(entry.aliases ?? [])],
+      }))),
     },
     matching: { ...DEFAULT_USER_SETTINGS.matching, ...settings.matching },
     theme: { ...DEFAULT_USER_SETTINGS.theme, ...settings.theme },
@@ -37,7 +43,12 @@ function deserializeSettings(payload: StoredSettingsPayload | null): UserSetting
   }
 
   return applyUserSettingsDefaults({
-    dictionary: { entries: cloneEntries(payload.settings.dictionary.entries) },
+    dictionary: {
+      entries: cloneEntries(payload.settings.dictionary.entries).map(entry => ({
+        ...entry,
+        aliases: entry.aliases ?? [],
+      })),
+    },
     matching: payload.settings.matching,
     theme: payload.settings.theme,
   })

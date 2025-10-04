@@ -14,31 +14,35 @@ interface CompiledEntry {
   regex: RegExp
 }
 
-function buildRegex(entry: DictionaryEntry, settings: MatchingSettings): RegExp | null {
-  if (!entry.term.trim())
+function buildRegex(pattern: string, settings: MatchingSettings): RegExp | null {
+  const source = pattern.trim()
+  if (!source)
     return null
 
   const flags = settings.caseSensitive ? 'g' : 'gi'
 
   try {
     if (settings.mode === 'regex')
-      return new RegExp(entry.term, flags)
+      return new RegExp(source, flags)
 
-    const escaped = escapeRegExp(entry.term)
+    const escaped = escapeRegExp(source)
     if (settings.mode === 'exact')
       return new RegExp(`(?:^|\\b)${escaped}(?:\\b|$)`, flags)
 
     return new RegExp(escaped, flags)
   }
   catch (error) {
-    console.warn('[caption-highlighter] Failed to build regex for entry', entry.term, error)
+    console.warn('[caption-highlighter] Failed to build regex for entry', pattern, error)
     return null
   }
 }
 
 export function createMatcher(entries: DictionaryEntry[], settings: MatchingSettings) {
   const compiled: CompiledEntry[] = entries
-    .map(entry => ({ entry, regex: buildRegex(entry, settings) }))
+    .flatMap((entry) => {
+      const terms = new Set<string>([entry.term, ...(entry.aliases ?? [])])
+      return Array.from(terms).map(pattern => ({ entry, regex: buildRegex(pattern, settings) }))
+    })
     .filter((item): item is CompiledEntry => Boolean(item.regex))
 
   const maxHighlights = settings.maxHighlightsPerNode
@@ -52,7 +56,10 @@ export function createMatcher(entries: DictionaryEntry[], settings: MatchingSett
     for (const { entry, regex } of compiled) {
       regex.lastIndex = 0
       let result: RegExpExecArray | null
-      while ((result = regex.exec(text))) {
+      while (true) {
+        result = regex.exec(text)
+        if (!result)
+          break
         const matchText = result[0]
         if (!matchText)
           break

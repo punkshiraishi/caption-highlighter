@@ -12,6 +12,7 @@ defineEmits<{ (event: 'remove', id: string): void }>()
       <thead>
         <tr>
           <th>用語</th>
+          <th>エイリアス</th>
           <th>説明</th>
           <th class="actions">
             操作
@@ -23,6 +24,9 @@ defineEmits<{ (event: 'remove', id: string): void }>()
           <td class="term">
             {{ entry.term }}
           </td>
+          <td class="aliases">
+            {{ (entry.aliases ?? []).join('\n') }}
+          </td>
           <td class="definition">
             {{ entry.definition }}
           </td>
@@ -33,7 +37,7 @@ defineEmits<{ (event: 'remove', id: string): void }>()
           </td>
         </tr>
         <tr v-if="!entries.length">
-          <td colspan="3" class="empty">
+          <td colspan="4" class="empty">
             登録された用語がありません。
           </td>
         </tr>
@@ -72,8 +76,14 @@ tr:nth-child(even) td {
 .term {
   font-weight: 600;
   color: #e0f2fe;
-  width: 25%;
+  width: 22%;
   white-space: pre-wrap;
+}
+
+.aliases {
+  width: 18%;
+  white-space: pre-wrap;
+  color: #bae6fd;
 }
 
 .definition {

@@ -1,13 +1,14 @@
-export type DictionaryEntry = {
+export interface DictionaryEntry {
   id: string
   term: string
   definition: string
+  aliases: string[]
   createdAt: string
   updatedAt: string
   source?: 'local' | 'imported'
 }
 
-export type DictionaryState = {
+export interface DictionaryState {
   entries: DictionaryEntry[]
 }
 
@@ -15,13 +16,30 @@ export const DEFAULT_DICTIONARY_STATE: DictionaryState = {
   entries: [],
 }
 
-export function createDictionaryEntry(term: string, definition: string, source: DictionaryEntry['source'] = 'local'): DictionaryEntry {
+function normalizeAliases(aliases?: string[]): string[] {
+  if (!aliases?.length)
+    return []
+
+  const unique = new Map<string, string>()
+  for (const alias of aliases) {
+    const trimmed = alias.trim()
+    if (!trimmed)
+      continue
+    const key = trimmed.toLocaleLowerCase()
+    if (!unique.has(key))
+      unique.set(key, trimmed)
+  }
+  return Array.from(unique.values())
+}
+
+export function createDictionaryEntry(term: string, definition: string, source: DictionaryEntry['source'] = 'local', aliases?: string[]): DictionaryEntry {
   const now = new Date().toISOString()
 
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     term: term.trim(),
     definition: definition.trim(),
+    aliases: normalizeAliases(aliases),
     createdAt: now,
     updatedAt: now,
     source,
@@ -41,7 +59,10 @@ export function mergeDictionaryEntries(existing: DictionaryEntry[], incoming: Di
   const preferExisting = options.preferExisting ?? false
 
   for (const entry of existing) {
-    byTerm.set(normalizeTerm(entry.term), entry)
+    byTerm.set(normalizeTerm(entry.term), {
+      ...entry,
+      aliases: normalizeAliases(entry.aliases),
+    })
   }
 
   for (const entry of incoming) {
@@ -54,6 +75,7 @@ export function mergeDictionaryEntries(existing: DictionaryEntry[], incoming: Di
 
     byTerm.set(key, {
       ...entry,
+      aliases: normalizeAliases(entry.aliases),
       updatedAt: new Date().toISOString(),
     })
   }

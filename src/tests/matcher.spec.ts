@@ -3,11 +3,12 @@ import { createMatcher } from '~/shared/matching/matcher'
 import type { DictionaryEntry } from '~/shared/models/dictionary'
 import { DEFAULT_MATCHING_SETTINGS } from '~/shared/models/settings'
 
-function entry(term: string, definition = ''): DictionaryEntry {
+function entry(term: string, definition = '', aliases: string[] = []): DictionaryEntry {
   return {
     id: term,
     term,
     definition,
+    aliases,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
@@ -44,6 +45,17 @@ describe('matcher', () => {
     const result = matcher.findMatches('CPU usage peaked alongside CPU load')
     expect(result).toHaveLength(2)
     expect(result[0].matchText).toBe('CPU usage')
+  })
+
+  it('matches aliases alongside primary terms', () => {
+    const matcher = createMatcher([
+      entry('Service Level Objective', '', ['SLO', 'サービスレベル目標']),
+    ], { ...DEFAULT_MATCHING_SETTINGS, mode: 'partial' })
+
+    const result = matcher.findMatches('SLO を守るにはサービスレベル目標の達成が必要です。')
+    expect(result).toHaveLength(2)
+    expect(result[0].matchText).toBe('SLO')
+    expect(result[1].matchText).toBe('サービスレベル目標')
   })
 
   it('limits highlights per node', () => {

@@ -18,13 +18,14 @@ const csvRows = ref<Record<string, string>[]>([])
 const selection = reactive({
   term: '',
   definition: '',
+  alias: '',
 })
 const stats = ref<DictionaryImportStats | null>(null)
 const importError = ref<string | null>(null)
 
 const hasPreview = computed(() => headers.value.length > 0 && csvRows.value.length > 0)
 
-watch(() => [selection.term, selection.definition], () => {
+watch(() => [selection.term, selection.definition, selection.alias], () => {
   importError.value = null
   stats.value = null
 })
@@ -37,9 +38,20 @@ function triggerFile() {
   fileInput.value?.click()
 }
 
+function guessAliasHeader(available: string[], excluded: string[]): string {
+  const known = ['alias', 'aliases', 'エイリアス', '別名']
+  for (const header of available) {
+    const lower = header.trim().toLocaleLowerCase()
+    if (known.includes(lower) && !excluded.includes(header))
+      return header
+  }
+  return ''
+}
+
 function resetSelection() {
   selection.term = headers.value[0] ?? ''
   selection.definition = headers.value[1] ?? ''
+  selection.alias = guessAliasHeader(headers.value, [selection.term, selection.definition])
 }
 
 function clearPreview() {
@@ -47,6 +59,9 @@ function clearPreview() {
   csvRows.value = []
   stats.value = null
   importError.value = null
+  selection.term = ''
+  selection.definition = ''
+  selection.alias = ''
   if (fileInput.value)
     fileInput.value.value = ''
 }
@@ -77,13 +92,18 @@ async function handleFileSelected(event: Event) {
   }
 }
 
-async function confirmImport(columns: { term: string, definition: string }) {
+async function confirmImport(columns: { term: string, definition: string, alias: string | null }) {
   if (!csvRows.value.length)
     return
 
   importError.value = null
 
-  const { entries, stats: importStats } = buildDictionaryFromCsv(csvRows.value, columns.term, columns.definition)
+  const { entries, stats: importStats } = buildDictionaryFromCsv(
+    csvRows.value,
+    columns.term,
+    columns.definition,
+    columns.alias ?? undefined,
+  )
 
   if (!entries.length) {
     stats.value = importStats
@@ -144,6 +164,7 @@ async function handleReset() {
         v-if="hasPreview"
         v-model:term="selection.term"
         v-model:definition="selection.definition"
+        v-model:alias="selection.alias"
         :headers="headers"
         :rows="csvRows"
         :stats="stats"

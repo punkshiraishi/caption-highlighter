@@ -11,10 +11,11 @@ const props = defineProps<{
   error: string | null
 }>()
 
-const emit = defineEmits<{ (event: 'confirm', payload: { term: string, definition: string }): void, (event: 'cancel'): void }>()
+const emit = defineEmits<{ (event: 'confirm', payload: { term: string, definition: string, alias: string | null }): void, (event: 'cancel'): void }>()
 
 const termModel = defineModel<string>('term', { required: true })
 const definitionModel = defineModel<string>('definition', { required: true })
+const aliasModel = defineModel<string>('alias', { default: '' })
 
 const previewRows = computed<CsvPreviewRow[]>(() => {
   return Array.from({ length: Math.min(5, props.rows.length) }, (_, index) => {
@@ -33,7 +34,7 @@ const canImport = computed(() => Boolean(termModel.value && definitionModel.valu
 function handleConfirm() {
   if (!canImport.value)
     return
-  emit('confirm', { term: termModel.value, definition: definitionModel.value })
+  emit('confirm', { term: termModel.value, definition: definitionModel.value, alias: aliasModel.value || null })
 }
 </script>
 
@@ -45,6 +46,13 @@ function handleConfirm() {
       <label>
         用語列
         <select v-model="termModel">
+          <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
+        </select>
+      </label>
+      <label>
+        エイリアス列 (任意)
+        <select v-model="aliasModel">
+          <option value="">選択なし</option>
           <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
         </select>
       </label>

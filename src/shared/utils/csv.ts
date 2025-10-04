@@ -30,19 +30,30 @@ export interface DictionaryImportStats {
   skipped: number
 }
 
-export function buildDictionaryFromCsv(rows: Record<string, string>[], termColumn: string, definitionColumn: string): { entries: DictionaryEntry[]; stats: DictionaryImportStats } {
+function parseAliases(value: string): string[] {
+  if (!value)
+    return []
+
+  return value
+    .split(/[\n,]/)
+    .map(alias => alias.trim())
+    .filter(Boolean)
+}
+
+export function buildDictionaryFromCsv(rows: Record<string, string>[], termColumn: string, definitionColumn: string, aliasColumn?: string): { entries: DictionaryEntry[], stats: DictionaryImportStats } {
   const entries: DictionaryEntry[] = []
   let skipped = 0
 
   for (const row of rows) {
     const term = (row[termColumn] ?? '').toString().trim()
     const definition = (row[definitionColumn] ?? '').toString().trim()
+    const aliasRaw = aliasColumn ? (row[aliasColumn] ?? '').toString() : ''
     if (!term || !definition) {
       skipped += 1
       continue
     }
 
-    entries.push(createDictionaryEntry(term, definition, 'imported'))
+    entries.push(createDictionaryEntry(term, definition, 'imported', parseAliases(aliasRaw)))
   }
 
   return {

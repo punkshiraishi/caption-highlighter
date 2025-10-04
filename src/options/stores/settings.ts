@@ -69,6 +69,7 @@ export const useSettingsStore = defineStore('settings', () => {
     return dictionary.value.filter(entry => (
       entry.term.toLocaleLowerCase().includes(token)
       || entry.definition.toLocaleLowerCase().includes(token)
+      || (entry.aliases ?? []).some(alias => alias.toLocaleLowerCase().includes(token))
     ))
   })
 
