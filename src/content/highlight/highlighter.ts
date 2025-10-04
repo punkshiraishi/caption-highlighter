@@ -129,7 +129,6 @@ export class CaptionHighlighter {
     span.dataset.chEntryId = match.entry.id
     span.setAttribute('role', 'note')
     span.setAttribute('aria-label', `${match.entry.term}: ${match.entry.definition}`)
-    span.title = `${match.entry.term}: ${match.entry.definition}`
 
     const entry = this.entryIndex.get(match.entry.id) ?? match.entry
     this.tooltip.register(span, entry)
