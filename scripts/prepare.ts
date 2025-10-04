@@ -1,5 +1,6 @@
 // generate stub index.html files for dev entry
 import { execSync } from 'node:child_process'
+import process from 'node:process'
 import fs from 'fs-extra'
 import chokidar from 'chokidar'
 import { isDev, log, port, r } from './utils'
@@ -21,20 +22,44 @@ async function stubIndexHtml() {
   }
 }
 
+async function syncAssets() {
+  const source = r('assets')
+  const destination = r('extension/assets')
+
+  if (!await fs.pathExists(source))
+    return
+
+  await fs.ensureDir(destination)
+  await fs.copy(source, destination)
+  log('PRE', 'sync assets')
+}
+
 function writeManifest() {
   execSync('npx esno ./scripts/manifest.ts', { stdio: 'inherit' })
 }
 
-writeManifest()
+async function prepare() {
+  writeManifest()
+  await syncAssets()
 
-if (isDev) {
-  stubIndexHtml()
-  chokidar.watch(r('src/**/*.html'))
-    .on('change', () => {
-      stubIndexHtml()
-    })
-  chokidar.watch([r('src/manifest.ts'), r('package.json')])
-    .on('change', () => {
-      writeManifest()
-    })
+  if (isDev) {
+    await stubIndexHtml()
+    chokidar.watch(r('src/**/*.html'))
+      .on('change', () => {
+        stubIndexHtml().catch(error => console.error(error))
+      })
+    chokidar.watch([r('src/manifest.ts'), r('package.json')])
+      .on('change', () => {
+        writeManifest()
+      })
+    chokidar.watch(r('assets/**'))
+      .on('change', () => {
+        syncAssets().catch(error => console.error(error))
+      })
+  }
 }
+
+prepare().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})
