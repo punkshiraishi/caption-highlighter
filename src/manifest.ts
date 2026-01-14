@@ -47,6 +47,13 @@ export async function getManifest() {
         css: ['dist/contentScripts/style.css'],
         run_at: 'document_idle',
       },
+      // Gemini Nano bridge script runs in MAIN world to access LanguageModel API
+      {
+        matches: ['https://meet.google.com/*'],
+        js: ['dist/contentScripts/gemini-bridge.global.js'],
+        run_at: 'document_start',
+        world: 'MAIN',
+      } as any,
     ],
     web_accessible_resources: [
       {

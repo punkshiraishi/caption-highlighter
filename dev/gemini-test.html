@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Nano テスト</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #333;
+      --text: #e0e0e0;
+      --text-muted: #888;
+      --accent: #4ade80;
+      --accent-dim: rgba(74, 222, 128, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .status--available {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .status--unavailable {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+
+    .status--checking {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      max-width: 1400px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .panel__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .panel__title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .panel__content {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 300px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 300px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      color: var(--text);
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    pre {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn--primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn--primary:hover {
+      background: #5eead4;
+    }
+
+    .btn--primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn--secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .btn--secondary:hover {
+      background: #444;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .log {
+      margin-top: 24px;
+    }
+
+    .log__title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .log__content {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .samples {
+      margin-top: 24px;
+    }
+
+    .samples__title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .samples__list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .samples__btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: var(--border);
+      border: none;
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .samples__btn:hover {
+      background: #444;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Gemini Nano テストページ</h1>
+  <p class="subtitle">固定の議事録サンプルでLLMの応答を確認</p>
+
+  <div id="status" class="status status--checking">
+    <span class="loading"></span>
+    <span>Gemini Nano 確認中...</span>
+  </div>
+
+  <div class="actions">
+    <button id="runBtn" class="btn btn--primary" disabled>
+      ▶ プロンプト実行
+    </button>
+    <button id="clearBtn" class="btn btn--secondary">
+      クリア
+    </button>
+  </div>
+
+  <div class="container">
+    <div class="panel">
+      <div class="panel__header">
+        <span class="panel__title">📝 入力（会議発言）</span>
+      </div>
+      <textarea id="input" placeholder="会議発言を入力..."></textarea>
+      
+      <div class="samples">
+        <div class="samples__title">サンプル選択:</div>
+        <div class="samples__list">
+          <button class="samples__btn" data-sample="budget">予算会議</button>
+          <button class="samples__btn" data-sample="project">プロジェクト報告</button>
+          <button class="samples__btn" data-sample="hiring">採用会議</button>
+          <button class="samples__btn" data-sample="product">製品企画</button>
+          <button class="samples__btn" data-sample="retrospective">振り返り</button>
+          <button class="samples__btn" data-sample="training">研修報告</button>
+          <button class="samples__btn" data-sample="sales">営業戦略</button>
+          <button class="samples__btn" data-sample="incident">障害報告</button>
+          <button class="samples__btn" data-sample="realtime1">🎤 リアル1</button>
+          <button class="samples__btn" data-sample="realtime2">🎤 リアル2</button>
+          <button class="samples__btn" data-sample="realtime3">🎤 リアル3</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__header">
+        <span class="panel__title">📋 出力（構造化メモ）</span>
+      </div>
+      <div class="panel__content">
+        <pre id="output">結果がここに表示されます...</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="log">
+    <div class="log__title">📜 送信プロンプト</div>
+    <div class="log__content">
+      <pre id="promptLog">-</pre>
+    </div>
+  </div>
+
+  <script>
+    // サンプル議事録データ
+    const SAMPLES = {
+      budget: `今回の議題は今年度の予算、そして来年度の予算についてです。
+今年度の予算に関しては、システム部、総務部、人事部から発表をお願いします。
+システム部では、AI関連ツールと、メトリクス計測ツール、それから業務委託、採用の方の予算が新たに申請が必要になりました。
+具体的には、GitHub Copilotのライセンス費用が年間で約500万円、Datadogのメトリクス計測ツールが年間300万円程度を見込んでいます。
+業務委託については、フロントエンド開発の外部委託で月額150万円、年間で1800万円の予算を申請します。
+総務部からは、オフィス移転に関する費用と、備品購入費について報告があります。
+移転先のオフィスは渋谷駅から徒歩5分の新築ビルで、敷金礼金で約2000万円、内装工事費で800万円を見込んでいます。
+人事部では、研修プログラムの拡充と、新卒採用の広告費について予算申請を行います。
+新入社員向けの技術研修を外部委託する場合、1人あたり30万円で20名分、合計600万円となります。
+採用広告はWantedlyとGreenを中心に、年間で400万円の予算を確保したいと考えています。
+以上の内容について、各部門からの質問があればお願いします。`,
+
+      project: `本日はプロジェクトAの進捗報告を行います。
+現在のステータスは予定通り進行中です。
+開発チームからの報告では、バックエンドAPIの実装が80%完了しています。
+認証機能、ユーザー管理API、商品管理APIは実装完了、現在は決済連携APIの開発を進めています。
+フロントエンド側はデザインレビューが完了し、実装に着手しました。
+React 18とNext.js 14を使用しており、コンポーネント設計は完了しています。
+来週までにベータ版をリリース予定です。
+社内テスト用に10アカウントを用意し、営業部と企画部からフィードバックを収集します。
+課題として、外部連携APIのレスポンス速度が想定より遅いという問題があります。
+特に決済代行会社のAPIが平均で2秒かかっており、ユーザー体験に影響が出ています。
+対策として、キャッシュ機構の導入を検討中です。
+Redisを使ったキャッシュ層を追加することで、レスポンス時間を500ミリ秒以下に抑える計画です。
+次回のマイルストーンは来月15日のパブリックベータリリースとなります。`,
+
+      hiring: `採用会議を始めます。現在の採用状況について報告します。
+エンジニア職は5名の枠に対して、書類選考通過者が12名です。
+内訳としては、バックエンドエンジニア3名枠に対して応募8名、フロントエンドエンジニア2名枠に対して応募4名となっています。
+来週から一次面接を開始します。面接官は開発部の山田さんと佐藤さんにお願いしています。
+デザイナー職は2名の枠に対して、ポートフォリオ選考中が8名です。
+UI/UXデザイナーとグラフィックデザイナーを1名ずつ採用予定で、Figmaの実務経験を重視しています。
+営業職は3名の枠を新たに追加しました。法人営業経験者を優先的に採用したいと考えています。
+人材紹介会社からの紹介が増えており、コストについて検討が必要です。
+現在の紹介手数料率は年収の35%で、3名採用すると約1500万円のコストがかかります。
+ダイレクトリクルーティングの活用を増やすことで、コスト削減を図りたいと思います。
+内定承諾率を上げるため、オファー面談の改善案を人事部で検討中です。
+具体的には、現場社員との座談会を設定することで、入社後のイメージを持ってもらう施策を考えています。`,
+
+      product: `新製品企画会議を始めます。
+本日は来期リリース予定の新サービスについて、企画部から提案があります。
+サービス名は仮称「スマートタスク」、中小企業向けのタスク管理SaaSを想定しています。
+市場調査の結果、従業員50名以下の企業でタスク管理ツールの導入率は約30%に留まっています。
+既存サービスは機能が複雑すぎる、または価格が高いという課題があります。
+我々の強みとしては、シンプルなUIと月額980円からの低価格帯を実現できる点です。
+ターゲットは従業員10名から50名のIT企業以外の中小企業を想定しています。
+必要な機能としては、タスクの作成・編集・削除、担当者のアサイン、期限管理、進捗のカンバン表示です。
+差別化ポイントとして、LINEとの連携機能を実装したいと考えています。
+日本の中小企業ではLINEがコミュニケーションツールとして広く使われているためです。
+開発期間は6ヶ月を想定しており、来年4月のリリースを目指します。
+初期の目標として、リリースから3ヶ月で100社の導入を目指します。
+開発予算として3000万円、マーケティング予算として500万円を申請します。`,
+
+      retrospective: `今月のスプリント振り返りを行います。
+まずはKPTの形式で進めていきたいと思います。
+Keepとして良かった点です。
+デイリースタンドアップを15分以内に終わらせることができるようになりました。
+ペアプログラミングを積極的に実施した結果、コードレビューの指摘事項が30%減少しました。
+ドキュメントの整備が進み、新メンバーのオンボーディングがスムーズになりました。
+テストカバレッジが前月の65%から78%に向上しました。
+Problemとして課題点です。
+スプリント中の仕様変更が3回あり、予定していたタスクの20%が完了できませんでした。
+技術的負債の解消に着手できていません。特にレガシーなAPIの改修が遅れています。
+リモートワーク中のコミュニケーション不足が指摘されています。
+本番環境へのデプロイ時にエラーが発生し、2時間のダウンタイムがありました。
+Tryとして次回挑戦することです。
+仕様変更のプロセスを明確化し、スプリント中の変更は次スプリントに回すルールを設定します。
+毎週金曜日の午後を技術的負債の解消に充てる時間として確保します。
+週1回のオンラインランチ会を実施して、雑談の機会を増やします。
+デプロイ前のチェックリストを作成し、ダブルチェック体制を導入します。`,
+
+      training: `新入社員研修の報告を行います。
+今年度は4月に入社した新卒10名を対象に、3ヶ月間の研修を実施しました。
+研修プログラムの内容についてご報告します。
+1ヶ月目はビジネスマナー研修と会社理解を中心に行いました。
+名刺交換、電話対応、メール作成などの基本スキルを習得しています。
+また、各部門の責任者から事業内容の説明を受け、会社全体の理解を深めました。
+2ヶ月目は技術研修を実施しました。
+プログラミング未経験者が4名いたため、基礎的なHTML、CSS、JavaScriptから始めました。
+経験者向けには、社内で使用しているReactとTypeScriptのハンズオン研修を行いました。
+チーム開発の練習として、簡単なTodoアプリを5人ずつのチームで開発しました。
+3ヶ月目はOJT期間として、各配属先で実際の業務を経験しました。
+メンター制度を導入し、先輩社員がマンツーマンでサポートしています。
+研修終了時のアンケート結果です。
+満足度は5点満点中4.2点でした。
+「技術研修の時間をもっと増やしてほしい」という要望が多くありました。
+来年度の改善点として、技術研修を2週間延長することを検討しています。`,
+
+      sales: `営業戦略会議を開始します。
+今期の営業実績と来期の戦略について報告します。
+今期の売上実績は目標の95%達成、12億5000万円となりました。
+未達の要因として、大型案件2件の契約が来期にずれ込んだことが挙げられます。
+クライアント別では、既存顧客からの売上が75%、新規顧客が25%という比率でした。
+来期は新規顧客の割合を35%まで引き上げることを目標とします。
+そのための施策として3点提案します。
+1点目は、インサイドセールス部門の強化です。
+現在2名体制ですが、4名に増員してリード獲得数を2倍にします。
+2点目は、パートナー企業との協業強化です。
+現在5社のパートナー企業がありますが、来期は10社まで拡大します。
+特にSIerとの連携を強化し、エンタープライズ案件の獲得を目指します。
+3点目は、マーケティングとの連携強化です。
+ウェビナーを月2回開催し、そこからのリードを営業につなげるフローを構築します。
+来期の売上目標は15億円、前期比20%増を目指します。
+四半期ごとの目標として、Q1が3億円、Q2が3.5億円、Q3が4億円、Q4が4.5億円を設定します。`,
+
+      incident: `システム障害報告会議を始めます。
+昨日発生した本番環境の障害について報告します。
+発生日時は12月5日午前10時23分、復旧完了は同日12時45分、影響時間は約2時間20分でした。
+影響範囲は、Webサービス全体で、この間約5000人のユーザーがサービスを利用できませんでした。
+障害の原因についてご説明します。
+直接原因は、データベースサーバーのディスク容量が100%に達したことです。
+ログファイルの肥大化が主な要因で、過去30日分のログが削除されずに蓄積されていました。
+本来は7日で自動削除される設定でしたが、3ヶ月前の設定変更時に誤って無効化されていました。
+対応経緯です。
+10時23分に監視アラートが発報、10時30分にオンコール担当者が対応開始しました。
+10時45分にディスク容量不足を特定、11時にログファイルの手動削除を開始しました。
+12時30分にサービス復旧を確認、12時45分に正常動作を確認して対応完了としました。
+再発防止策として3点実施します。
+1点目、ログローテーション設定を修正し、7日以上のログは自動削除されるようにしました。
+2点目、ディスク使用率80%でアラートを発報するように閾値を変更しました。
+3点目、設定変更時のレビュープロセスを導入し、複数人でのダブルチェックを必須とします。`,
+
+      // リアルな音声文字起こし（誤字脱字・言い淀み含む）
+      realtime1: `えーっとですね、今日の議題なんですけども、えー、来月のイベントについてですね。
+あのー、まず最初に、えーと、会場の件なんですが、しぶや、渋谷のあのー、なんだっけ、ヒカリエ？ヒカリエのホールを予約しました。
+で、あのー、収容人数が200名ぐらい、あ、200名じゃない、250名ですね、250名まで入れます。
+えっと、日程はですね、12月の、えーと、15日の土曜日を予定しててー、あ、ごめんなさい、16日だ、16日の土曜日です。
+で、あのー、参加費なんですけども、えーと、一般参加が3000円、あ、3500円、学生が1500円っていう感じで考えてます。
+あとー、スポンサーの件なんですけど、えーっと、今のところ、株式会社なんとかさんと、あー、えーと、ABCコーポレーションさんから、あの、協賛の、おー、お話をいただいてて。
+で、それぞれ、あの、ゴールドスポンサーで50万円、シルバーで20万ぐらい、20万円を、あの、ご検討いただいてるっていう状況です。
+あとは、えーと、登壇者なんですけども、今、3名確定してて、えーと、山田さんと、佐藤さんと、あと、外部から田中先生をお呼びする予定です。`,
+
+      realtime2: `あー、えーと、システム障害の件で報告します。
+昨日のですね、えーと、午前中、10時ぐらいですかね、あの、本番環境が、えー、ダウンしまして。
+原因はですね、あのー、ディービー、データベースの、えーと、コネクションが、あー、枯渇した、みたいな感じで。
+で、あのー、調査したところ、えっと、バッチ処理が、あー、なんか、あの、コネクションをリリースしてなくて、それがどんどん溜まってって。
+でー、最終的に上限の、えーと、100？100コネクションに達して、あの、新規の接続ができなくなった、と。
+復旧にはですね、えーと、まあ、とりあえず、あのー、DBを再起動して、で、バッチを止めて、えー、2時間ぐらいかかりました。
+あー、影響範囲なんですけど、えーと、ユーザー数で言うと、まあ、5000人ぐらい？5000人から1万人ぐらいの間かな、あの、影響があったと思います。
+再発防止としてはですね、あの、コネクションプーリングの設定を見直しと、あと、監視の閾値を、えー、80パー、80パーセントで、あの、アラートが出るようにしました。
+で、あとー、バッチ処理のコードレビューを、あの、全部やり直すっていうのを、来週までにやる予定です。`,
+
+      realtime3: `えー、採用の進捗について、えーと、ご報告します。
+まずエンジニアなんですけど、えーっと、今、書類選考が、えー、12名通過してて、来週から、あの、一次面接を、えー、スタートします。
+で、あのー、面接官は、えーと、やまだ、山田さんと、あと、さとう、佐藤さんに、えー、お願いしてて。
+あー、ちなみに、応募者の内訳なんですけど、えーと、バックエンドが、8名、で、フロントエンドが、あー、4名、ですね。
+で、えーと、経験年数で言うと、えーっと、3年以上が、半分ぐらい？6名ぐらいで、えー、残りは、まあ、1年から3年っていう感じです。
+あとー、デザイナーの方は、えーと、今、ポートフォリオの選考中で、えー、8名の中から、まあ、5名ぐらいに、あの、絞る予定です。
+で、採用費用の話なんですけど、えーと、人材紹介会社経由だと、まあ、年収の35パー、35パーセントぐらい、えー、かかるんで。
+えっと、仮に3名採用すると、えー、1500万、1500万円ぐらい、あの、コストがかかる計算になります。
+なので、あのー、ダイレクト、ダイレクトリクルーティングを、もっと活用して、えー、コスト削減、したいなって思ってます。`
+    };
+
+    let session = null;
+    let previousSummary = '';
+
+    // DOM要素
+    const statusEl = document.getElementById('status');
+    const runBtn = document.getElementById('runBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const inputEl = document.getElementById('input');
+    const outputEl = document.getElementById('output');
+    const promptLogEl = document.getElementById('promptLog');
+
+    // Gemini Nano API取得
+    function getLanguageModelAPI() {
+      if (typeof self !== 'undefined' && self.LanguageModel) {
+        return self.LanguageModel;
+      }
+      if (typeof window !== 'undefined' && window.LanguageModel) {
+        return window.LanguageModel;
+      }
+      if (typeof window !== 'undefined' && window.ai?.languageModel) {
+        return window.ai.languageModel;
+      }
+      return null;
+    }
+
+    // 利用可能かチェック
+    async function checkAvailability() {
+      const api = getLanguageModelAPI();
+      if (!api) {
+        updateStatus('unavailable', '❌ Gemini Nano 未対応');
+        return false;
+      }
+
+      try {
+        let status;
+        if (api.availability) {
+          status = await api.availability();
+        } else if (api.capabilities) {
+          const caps = await api.capabilities();
+          status = caps.available;
+        } else {
+          updateStatus('unavailable', '❌ API未対応');
+          return false;
+        }
+
+        if (status === 'readily' || status === 'available') {
+          updateStatus('available', '✅ Gemini Nano 利用可能');
+          runBtn.disabled = false;
+          return true;
+        } else if (status === 'after-download') {
+          updateStatus('checking', '⏳ モデルダウンロード中...');
+          return false;
+        } else {
+          updateStatus('unavailable', `❌ 利用不可 (${status})`);
+          return false;
+        }
+      } catch (error) {
+        updateStatus('unavailable', `❌ エラー: ${error.message}`);
+        return false;
+      }
+    }
+
+    function updateStatus(type, text) {
+      statusEl.className = `status status--${type}`;
+      statusEl.innerHTML = type === 'checking' 
+        ? `<span class="loading"></span><span>${text}</span>`
+        : `<span>${text}</span>`;
+    }
+
+    // セッション作成
+    async function createSession() {
+      const api = getLanguageModelAPI();
+      if (!api) return false;
+
+      try {
+        session = await api.create({
+          expectedOutputLanguages: ['ja'],
+          temperature: 1.0,
+          topK: 3,
+        });
+        console.log('Session created');
+        return true;
+      } catch (error) {
+        console.error('Failed to create session:', error);
+        return false;
+      }
+    }
+
+    // プロンプト実行
+    async function executePrompt() {
+      if (!session) {
+        const created = await createSession();
+        if (!created) {
+          outputEl.textContent = 'セッション作成に失敗しました';
+          return;
+        }
+      }
+
+      const captions = inputEl.value.trim();
+      if (!captions) {
+        outputEl.textContent = '入力が空です';
+        return;
+      }
+
+      runBtn.disabled = true;
+      outputEl.textContent = '処理中...';
+
+      let prompt;
+      if (previousSummary && previousSummary.trim()) {
+        prompt = `会議メモを更新。ネストした箇条書きで構造化。強調記号(**)は使わない。
+
+現在のメモ:
+${previousSummary}
+
+追加内容: ${captions}
+
+更新したメモ:
+-`;
+      } else {
+        prompt = `会議発言をネストした箇条書きで構造化。強調記号(**)は使わない。
+
+発言: ${captions}
+
+構造化メモ:
+- 議題
+  -`;
+      }
+
+      promptLogEl.textContent = prompt;
+
+      try {
+        console.log('Executing prompt...');
+        const result = await session.prompt(prompt);
+        console.log('Result:', result);
+        
+        // 結果を表示
+        outputEl.textContent = result || '(空の応答)';
+        
+        // 次回用に保存
+        previousSummary = result;
+      } catch (error) {
+        console.error('Prompt failed:', error);
+        outputEl.textContent = `エラー: ${error.message}`;
+      } finally {
+        runBtn.disabled = false;
+      }
+    }
+
+    // クリア
+    function clearAll() {
+      inputEl.value = '';
+      outputEl.textContent = '結果がここに表示されます...';
+      promptLogEl.textContent = '-';
+      previousSummary = '';
+    }
+
+    // サンプル選択
+    function selectSample(sampleKey) {
+      if (SAMPLES[sampleKey]) {
+        inputEl.value = SAMPLES[sampleKey];
+      }
+    }
+
+    // イベントリスナー
+    runBtn.addEventListener('click', executePrompt);
+    clearBtn.addEventListener('click', clearAll);
+
+    document.querySelectorAll('.samples__btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectSample(btn.dataset.sample);
+      });
+    });
+
+    // 初期化
+    checkAvailability();
+    inputEl.value = SAMPLES.budget; // デフォルトでサンプルをセット
+  </script>
+</body>
+</html>
+
