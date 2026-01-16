@@ -85,6 +85,8 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     .panel__title {
@@ -93,6 +95,13 @@
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
+    }
+
+    .panel__actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
     .panel__content {
@@ -167,13 +176,6 @@
 
     .btn--secondary:hover {
       background: #444;
-    }
-
-    .actions {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
     }
 
     .config {
@@ -408,18 +410,6 @@
     Flash を使うと入力テキスト（字幕）が外部 API に送信されます。テスト用途でのみ使用し、API Key の取り扱いに注意してください。
   </div>
 
-  <div class="actions">
-    <button id="runBtn" class="btn btn--primary" disabled>
-      ▶ プロンプト実行
-    </button>
-    <button id="testBtn" class="btn btn--secondary hidden">
-      接続テスト
-    </button>
-    <button id="clearBtn" class="btn btn--secondary">
-      クリア
-    </button>
-  </div>
-
   <div class="container">
     <div class="panel">
       <div class="panel__header">
@@ -448,35 +438,52 @@
     <div class="panel">
       <div class="panel__header">
         <span class="panel__title">📋 出力（構造化メモ）</span>
+        <div class="panel__actions">
+          <button id="runBtn" class="btn btn--primary" disabled>
+            ▶ プロンプト実行
+          </button>
+          <button id="testBtn" class="btn btn--secondary hidden">
+            接続テスト
+          </button>
+          <button id="clearTextBtn" class="btn btn--secondary">
+            クリア
+          </button>
+        </div>
       </div>
       <div class="panel__content">
         <pre id="output">結果がここに表示されます...</pre>
+      </div>
+      <div class="log">
+        <div class="log__title">📜 構造化メモ用プロンプト</div>
+        <div class="log__content">
+          <pre id="promptLog">-</pre>
+        </div>
       </div>
     </div>
 
     <div class="panel">
       <div class="panel__header">
         <span class="panel__title">🖼️ 画像出力（ホワイトボード風）</span>
+        <div class="panel__actions">
+          <button id="renderImageBtn" class="btn btn--secondary" type="button">画像を更新</button>
+          <button id="clearImageBtn" class="btn btn--secondary" type="button">クリア</button>
+          <button id="downloadImageBtn" class="btn btn--secondary" type="button">画像を保存</button>
+        </div>
       </div>
       <div class="image-panel__toolbar">
         <span class="image-panel__hint">構造化メモから自動生成されます</span>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button id="renderImageBtn" class="btn btn--secondary" type="button">画像を更新</button>
-          <button id="downloadImageBtn" class="btn btn--secondary" type="button">画像を保存</button>
-        </div>
       </div>
       <div class="image-panel__canvas-wrap">
         <img id="imageEl" class="image-panel__image is-empty" alt="ホワイトボード画像">
         <div id="imageStatus" class="image-panel__status"></div>
         <div id="imageEmpty" class="image-panel__empty is-visible">画像を作成するには議事録が必要です</div>
       </div>
-    </div>
-  </div>
-
-  <div class="log">
-    <div class="log__title">📜 送信プロンプト</div>
-    <div class="log__content">
-      <pre id="promptLog">-</pre>
+      <div class="log">
+        <div class="log__title">🖼️ 画像出力用プロンプト</div>
+        <div class="log__content">
+          <pre id="imagePromptLog">-</pre>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -643,10 +650,11 @@ Tryとして次回挑戦することです。
     const statusEl = document.getElementById('status');
     const runBtn = document.getElementById('runBtn');
     const testBtn = document.getElementById('testBtn');
-    const clearBtn = document.getElementById('clearBtn');
+    const clearTextBtn = document.getElementById('clearTextBtn');
     const inputEl = document.getElementById('input');
     const outputEl = document.getElementById('output');
     const promptLogEl = document.getElementById('promptLog');
+    const imagePromptLogEl = document.getElementById('imagePromptLog');
     const providerEl = document.getElementById('provider');
     const flashConfigEl = document.getElementById('flashConfig');
     const flashModelFieldEl = document.getElementById('flashModelField');
@@ -657,6 +665,7 @@ Tryとして次回挑戦することです。
     const loadModelsStatusEl = document.getElementById('loadModelsStatus');
     const flashHintEl = document.getElementById('flashHint');
     const renderImageBtn = document.getElementById('renderImageBtn');
+    const clearImageBtn = document.getElementById('clearImageBtn');
     const downloadImageBtn = document.getElementById('downloadImageBtn');
     const imageEl = document.getElementById('imageEl');
     const imageStatusEl = document.getElementById('imageStatus');
@@ -835,6 +844,8 @@ ${safe}
       setImageStatus('画像生成中...');
       try {
         const prompt = buildImagePrompt(markdown);
+        if (imagePromptLogEl)
+          imagePromptLogEl.textContent = prompt;
         const model = await resolveImageModel(apiKey);
         if (!model) {
           setImageStatus('画像生成モデルが見つかりませんでした');
@@ -1122,14 +1133,20 @@ ${previous}
       }
     }
 
-    // クリア
-    function clearAll() {
+    // クリア（テキスト）
+    function clearText() {
       inputEl.value = '';
       outputEl.textContent = '結果がここに表示されます...';
       promptLogEl.textContent = '-';
       previousSummary = '';
+    }
+
+    // クリア（画像）
+    function clearImage() {
       setImageDataUrl('');
       setImageStatus('');
+      if (imagePromptLogEl)
+        imagePromptLogEl.textContent = '-';
     }
 
     // サンプル選択
@@ -1141,9 +1158,10 @@ ${previous}
 
     // イベントリスナー
     runBtn.addEventListener('click', executePrompt);
-    clearBtn.addEventListener('click', clearAll);
+    clearTextBtn.addEventListener('click', clearText);
     testBtn.addEventListener('click', testFlashConnection);
     renderImageBtn.addEventListener('click', generateImage);
+    clearImageBtn.addEventListener('click', clearImage);
     downloadImageBtn.addEventListener('click', downloadImage);
 
     providerEl.addEventListener('change', async () => {
