@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemini Nano テスト</title>
+  <title>Gemini Nano / Flash テスト</title>
   <style>
     :root {
       --bg: #0f0f0f;
@@ -173,6 +173,57 @@
       display: flex;
       gap: 12px;
       margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .config {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 220px;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    select,
+    input[type="text"],
+    input[type="password"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 13px;
+    }
+
+    select:focus,
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .hint {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     .log {
@@ -246,17 +297,44 @@
   </style>
 </head>
 <body>
-  <h1>🧪 Gemini Nano テストページ</h1>
-  <p class="subtitle">固定の議事録サンプルでLLMの応答を確認</p>
+  <h1>🧪 Gemini Nano / Flash テストページ</h1>
+  <p class="subtitle">固定の議事録サンプルでLLMの応答を確認（FlashはAI Studio API Keyが必要）</p>
 
   <div id="status" class="status status--checking">
     <span class="loading"></span>
-    <span>Gemini Nano 確認中...</span>
+    <span>初期化中...</span>
+  </div>
+
+  <div class="config">
+    <div class="field" style="min-width: 180px;">
+      <label for="provider">プロバイダ</label>
+      <select id="provider">
+        <option value="nano">Gemini Nano（ローカル）</option>
+        <option value="flash">Gemini Flash（クラウド / AI Studio）</option>
+      </select>
+    </div>
+
+    <div id="flashConfig" class="field hidden" style="min-width: 420px;">
+      <label for="apiKey">AI Studio API Key（ローカル保存）</label>
+      <input id="apiKey" type="password" placeholder="AIza...">
+    </div>
+
+    <div id="flashModelField" class="field hidden" style="min-width: 260px;">
+      <label for="flashModel">Flash model</label>
+      <input id="flashModel" type="text" placeholder="gemini-2.0-flash">
+    </div>
+  </div>
+
+  <div id="flashHint" class="hint hidden">
+    Flash を使うと入力テキスト（字幕）が外部 API に送信されます。テスト用途でのみ使用し、API Key の取り扱いに注意してください。
   </div>
 
   <div class="actions">
     <button id="runBtn" class="btn btn--primary" disabled>
       ▶ プロンプト実行
+    </button>
+    <button id="testBtn" class="btn btn--secondary hidden">
+      接続テスト
     </button>
     <button id="clearBtn" class="btn btn--secondary">
       クリア
@@ -467,10 +545,21 @@ Tryとして次回挑戦することです。
     // DOM要素
     const statusEl = document.getElementById('status');
     const runBtn = document.getElementById('runBtn');
+    const testBtn = document.getElementById('testBtn');
     const clearBtn = document.getElementById('clearBtn');
     const inputEl = document.getElementById('input');
     const outputEl = document.getElementById('output');
     const promptLogEl = document.getElementById('promptLog');
+    const providerEl = document.getElementById('provider');
+    const flashConfigEl = document.getElementById('flashConfig');
+    const flashModelFieldEl = document.getElementById('flashModelField');
+    const apiKeyEl = document.getElementById('apiKey');
+    const flashModelEl = document.getElementById('flashModel');
+    const flashHintEl = document.getElementById('flashHint');
+
+    const LS_PROVIDER = 'geminiTest:provider';
+    const LS_API_KEY = 'geminiTest:apiKey';
+    const LS_FLASH_MODEL = 'geminiTest:flashModel';
 
     // Gemini Nano API取得
     function getLanguageModelAPI() {
@@ -508,7 +597,8 @@ Tryとして次回挑戦することです。
 
         if (status === 'readily' || status === 'available') {
           updateStatus('available', '✅ Gemini Nano 利用可能');
-          runBtn.disabled = false;
+          if (getProvider() === 'nano')
+            runBtn.disabled = false;
           return true;
         } else if (status === 'after-download') {
           updateStatus('checking', '⏳ モデルダウンロード中...');
@@ -530,6 +620,33 @@ Tryとして次回挑戦することです。
         : `<span>${text}</span>`;
     }
 
+    function getProvider() {
+      return providerEl.value === 'flash' ? 'flash' : 'nano';
+    }
+
+    function setFlashUiVisible(visible) {
+      flashConfigEl.classList.toggle('hidden', !visible);
+      flashModelFieldEl.classList.toggle('hidden', !visible);
+      flashHintEl.classList.toggle('hidden', !visible);
+      testBtn.classList.toggle('hidden', !visible);
+    }
+
+    function updateRunButtonState() {
+      const provider = getProvider();
+      if (provider === 'nano') {
+        // enable/disable is controlled by availability check
+        return;
+      }
+      const apiKey = (apiKeyEl.value || '').trim();
+      runBtn.disabled = apiKey.length === 0;
+      if (!apiKey) {
+        // 「checking」はローディング表示になるので、Flashの待機中は使わない
+        updateStatus('unavailable', '⚠️ Flash: API Key を入力してください');
+      } else {
+        updateStatus('available', '✅ Flash: 実行可能（未テスト）');
+      }
+    }
+
     // セッション作成
     async function createSession() {
       const api = getLanguageModelAPI();
@@ -549,8 +666,29 @@ Tryとして次回挑戦することです。
       }
     }
 
-    // プロンプト実行
-    async function executePrompt() {
+    function buildPrompt(captions, previous) {
+      if (previous && previous.trim()) {
+        return `会議メモを更新。ネストした箇条書きで構造化。強調記号(**)は使わない。
+
+現在のメモ:
+${previous}
+
+追加内容: ${captions}
+
+更新したメモ:
+-`;
+      }
+      return `会議発言をネストした箇条書きで構造化。強調記号(**)は使わない。
+
+発言: ${captions}
+
+構造化メモ:
+- 議題
+  -`;
+    }
+
+    // プロンプト実行（Nano）
+    async function executePromptNano() {
       if (!session) {
         const created = await createSession();
         if (!created) {
@@ -568,44 +706,136 @@ Tryとして次回挑戦することです。
       runBtn.disabled = true;
       outputEl.textContent = '処理中...';
 
-      let prompt;
-      if (previousSummary && previousSummary.trim()) {
-        prompt = `会議メモを更新。ネストした箇条書きで構造化。強調記号(**)は使わない。
-
-現在のメモ:
-${previousSummary}
-
-追加内容: ${captions}
-
-更新したメモ:
--`;
-      } else {
-        prompt = `会議発言をネストした箇条書きで構造化。強調記号(**)は使わない。
-
-発言: ${captions}
-
-構造化メモ:
-- 議題
-  -`;
-      }
-
+      const prompt = buildPrompt(captions, previousSummary);
       promptLogEl.textContent = prompt;
 
       try {
         console.log('Executing prompt...');
         const result = await session.prompt(prompt);
         console.log('Result:', result);
-        
-        // 結果を表示
+
         outputEl.textContent = result || '(空の応答)';
-        
-        // 次回用に保存
         previousSummary = result;
       } catch (error) {
         console.error('Prompt failed:', error);
         outputEl.textContent = `エラー: ${error.message}`;
       } finally {
-        runBtn.disabled = false;
+        if (getProvider() === 'nano')
+          runBtn.disabled = false;
+      }
+    }
+
+    // プロンプト実行（Flash）
+    async function executePromptFlash() {
+      const captions = inputEl.value.trim();
+      if (!captions) {
+        outputEl.textContent = '入力が空です';
+        return;
+      }
+
+      const apiKey = (apiKeyEl.value || '').trim();
+      const model = (flashModelEl.value || '').trim() || 'gemini-2.0-flash';
+      if (!apiKey) {
+        outputEl.textContent = 'API Key が未設定です';
+        return;
+      }
+
+      runBtn.disabled = true;
+      outputEl.textContent = '処理中...';
+
+      const prompt = buildPrompt(captions, previousSummary);
+      promptLogEl.textContent = prompt;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const payload = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 1.0,
+          topK: 3,
+        },
+      };
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          const msg = data?.error?.message || `HTTP ${res.status}`;
+          outputEl.textContent = `エラー: ${msg}\n\n${data ? JSON.stringify(data, null, 2) : ''}`;
+          return;
+        }
+
+        const text = (data?.candidates?.[0]?.content?.parts || [])
+          .map(p => p?.text || '')
+          .join('')
+          .trim();
+
+        outputEl.textContent = text || JSON.stringify(data, null, 2);
+        previousSummary = outputEl.textContent;
+      } catch (error) {
+        outputEl.textContent = `エラー: ${error?.message || String(error)}`;
+      } finally {
+        if (getProvider() === 'flash')
+          runBtn.disabled = false;
+      }
+    }
+
+    async function executePrompt() {
+      const provider = getProvider();
+      if (provider === 'flash')
+        return executePromptFlash();
+      return executePromptNano();
+    }
+
+    async function testFlashConnection() {
+      const apiKey = (apiKeyEl.value || '').trim();
+      const model = (flashModelEl.value || '').trim() || 'gemini-2.0-flash';
+      if (!apiKey) {
+        outputEl.textContent = 'API Key が未設定です';
+        return;
+      }
+
+      testBtn.disabled = true;
+      updateStatus('checking', '⏳ Flash 接続テスト中...');
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const payload = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: 'hello' }],
+          },
+        ],
+      };
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = data?.error?.message || `HTTP ${res.status}`;
+          updateStatus('unavailable', `❌ Flash 接続失敗: ${msg}`);
+          outputEl.textContent = data ? JSON.stringify(data, null, 2) : `HTTP ${res.status}`;
+          return;
+        }
+        updateStatus('available', '✅ Flash 接続OK');
+        outputEl.textContent = '(OK) Flash に接続できました。';
+      } catch (error) {
+        updateStatus('unavailable', `❌ Flash 接続失敗: ${error?.message || String(error)}`);
+      } finally {
+        testBtn.disabled = false;
       }
     }
 
@@ -627,6 +857,42 @@ ${previousSummary}
     // イベントリスナー
     runBtn.addEventListener('click', executePrompt);
     clearBtn.addEventListener('click', clearAll);
+    testBtn.addEventListener('click', testFlashConnection);
+
+    providerEl.addEventListener('change', async () => {
+      const provider = getProvider();
+      try {
+        localStorage.setItem(LS_PROVIDER, provider);
+      } catch {}
+
+      // provider switching: reset session for nano to avoid weird state
+      if (provider !== 'nano') {
+        session = null;
+      }
+
+      setFlashUiVisible(provider === 'flash');
+
+      if (provider === 'nano') {
+        runBtn.disabled = true;
+        updateStatus('checking', '⏳ Gemini Nano 確認中...');
+        await checkAvailability();
+      } else {
+        updateRunButtonState();
+      }
+    });
+
+    apiKeyEl.addEventListener('input', () => {
+      try {
+        localStorage.setItem(LS_API_KEY, apiKeyEl.value);
+      } catch {}
+      updateRunButtonState();
+    });
+
+    flashModelEl.addEventListener('input', () => {
+      try {
+        localStorage.setItem(LS_FLASH_MODEL, flashModelEl.value);
+      } catch {}
+    });
 
     document.querySelectorAll('.samples__btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -635,7 +901,28 @@ ${previousSummary}
     });
 
     // 初期化
-    checkAvailability();
+    // restore last settings
+    try {
+      const savedProvider = localStorage.getItem(LS_PROVIDER);
+      if (savedProvider === 'flash')
+        providerEl.value = 'flash';
+      const savedKey = localStorage.getItem(LS_API_KEY);
+      if (savedKey)
+        apiKeyEl.value = savedKey;
+      const savedModel = localStorage.getItem(LS_FLASH_MODEL);
+      flashModelEl.value = savedModel || 'gemini-2.0-flash';
+    } catch {
+      flashModelEl.value = 'gemini-2.0-flash';
+    }
+
+    setFlashUiVisible(getProvider() === 'flash');
+
+    if (getProvider() === 'nano') {
+      updateStatus('checking', '⏳ Gemini Nano 確認中...');
+      checkAvailability();
+    } else {
+      updateRunButtonState();
+    }
     inputEl.value = SAMPLES.budget; // デフォルトでサンプルをセット
   </script>
 </body>
