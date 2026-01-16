@@ -2,8 +2,8 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { DictionaryEntry } from '~/shared/models/dictionary'
 import { mergeDictionaryEntries, removeDictionaryEntry } from '~/shared/models/dictionary'
-import type { MatchingSettings, ThemeSettings, UserSettings } from '~/shared/models/settings'
-import { DEFAULT_MATCHING_SETTINGS, DEFAULT_THEME_SETTINGS } from '~/shared/models/settings'
+import type { AiSettings, MatchingSettings, ThemeSettings, UserSettings, WhiteboardProvider } from '~/shared/models/settings'
+import { DEFAULT_AI_SETTINGS, DEFAULT_MATCHING_SETTINGS, DEFAULT_THEME_SETTINGS } from '~/shared/models/settings'
 import { loadUserSettings, saveUserSettings } from '~/shared/storage/settings'
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -11,6 +11,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const dictionary = ref<DictionaryEntry[]>([])
   const matching = ref<MatchingSettings>({ ...DEFAULT_MATCHING_SETTINGS })
   const theme = ref<ThemeSettings>({ ...DEFAULT_THEME_SETTINGS })
+  const ai = ref<AiSettings>({ ...DEFAULT_AI_SETTINGS })
   const filter = ref('')
 
   async function initialize() {
@@ -20,6 +21,7 @@ export const useSettingsStore = defineStore('settings', () => {
       dictionary.value = [...settings.dictionary.entries]
       matching.value = { ...settings.matching }
       theme.value = { ...settings.theme }
+      ai.value = { ...settings.ai }
     }
     finally {
       loading.value = false
@@ -31,6 +33,7 @@ export const useSettingsStore = defineStore('settings', () => {
       dictionary: { entries: [...dictionary.value] },
       matching: { ...matching.value },
       theme: { ...theme.value },
+      ai: { ...ai.value },
     }
 
     await saveUserSettings(payload)
@@ -61,6 +64,15 @@ export const useSettingsStore = defineStore('settings', () => {
     await persist()
   }
 
+  async function updateAi(options: Partial<AiSettings>) {
+    ai.value = { ...ai.value, ...options }
+    await persist()
+  }
+
+  async function setWhiteboardProvider(provider: WhiteboardProvider) {
+    await updateAi({ whiteboardProvider: provider })
+  }
+
   const filteredEntries = computed(() => {
     if (!filter.value.trim())
       return dictionary.value
@@ -82,6 +94,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dictionary,
     matching,
     theme,
+    ai,
     filter,
     filteredEntries,
     initialize,
@@ -90,6 +103,8 @@ export const useSettingsStore = defineStore('settings', () => {
     clearDictionary,
     updateMatching,
     updateTheme,
+    updateAi,
+    setWhiteboardProvider,
     setFilter,
   }
 })

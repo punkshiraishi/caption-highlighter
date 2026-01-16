@@ -18,10 +18,22 @@ export interface ThemeSettings {
   popupText: string
 }
 
+export type WhiteboardProvider = 'nano' | 'flash'
+
+export interface AiSettings {
+  /** ホワイトボード要約のプロバイダ（初期スコープは2択） */
+  whiteboardProvider: WhiteboardProvider
+  /** Flash 等の外部 LLM 利用に対する同意（外部送信の明示オプトイン） */
+  allowSendCaptionsToCloud: boolean
+  /** Flash のモデル名（将来の差し替え用） */
+  flashModel: string
+}
+
 export interface UserSettings {
   dictionary: DictionaryState
   matching: MatchingSettings
   theme: ThemeSettings
+  ai: AiSettings
 }
 
 export const DEFAULT_MATCHING_SETTINGS: MatchingSettings = {
@@ -39,10 +51,17 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
   popupText: '#ffffff',
 }
 
+export const DEFAULT_AI_SETTINGS: AiSettings = {
+  whiteboardProvider: 'nano',
+  allowSendCaptionsToCloud: false,
+  flashModel: 'gemini-2.0-flash',
+}
+
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   dictionary: DEFAULT_DICTIONARY_STATE,
   matching: DEFAULT_MATCHING_SETTINGS,
   theme: DEFAULT_THEME_SETTINGS,
+  ai: DEFAULT_AI_SETTINGS,
 }
 
 export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): UserSettings {
@@ -62,5 +81,6 @@ export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): User
         },
     matching: { ...DEFAULT_MATCHING_SETTINGS, ...partial?.matching },
     theme: { ...DEFAULT_THEME_SETTINGS, ...partial?.theme },
+    ai: { ...DEFAULT_AI_SETTINGS, ...partial?.ai },
   }
 }
