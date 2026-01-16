@@ -90,7 +90,7 @@ export async function ensureSettingsInitialized(): Promise<UserSettings> {
 export type SettingsChangeCallback = (settings: UserSettings) => void
 
 export function observeSettings(callback: SettingsChangeCallback): () => void {
-  const listener = (changes: Record<string, Storage.StorageChange>, area: Storage.AreaName) => {
+  const listener = (changes: Record<string, Storage.StorageChange>, area: string) => {
     if (area !== 'local')
       return
 

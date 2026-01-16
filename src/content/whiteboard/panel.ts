@@ -5,6 +5,8 @@
 
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 
+/* eslint-disable no-console */
+
 const PANEL_ID = 'whiteboard-panel'
 const TOGGLE_ID = 'whiteboard-toggle'
 const STORAGE_KEY = 'whiteboard-panel-position'
@@ -30,7 +32,6 @@ export class WhiteboardPanel {
   private isDragging = false
   private isResizing = false
   private dragOffset = { x: 0, y: 0 }
-  private availability: GeminiNanoAvailability = 'not-supported'
 
   constructor(settings: WhiteboardSettings) {
     this.settings = settings
@@ -127,7 +128,7 @@ export class WhiteboardPanel {
     // ヘッダーでドラッグ
     const header = this.panel.querySelector('.whiteboard-panel__header')
     if (header) {
-      header.addEventListener('mousedown', (e) => this.startDrag(e as MouseEvent))
+      header.addEventListener('mousedown', e => this.startDrag(e as MouseEvent))
     }
 
     // コピーボタン
@@ -143,10 +144,10 @@ export class WhiteboardPanel {
 
     // リサイズハンドル
     const resizeHandle = this.panel.querySelector('.whiteboard-panel__resize')
-    resizeHandle?.addEventListener('mousedown', (e) => this.startResize(e as MouseEvent))
+    resizeHandle?.addEventListener('mousedown', e => this.startResize(e as MouseEvent))
 
     // グローバルイベント
-    document.addEventListener('mousemove', (e) => this.onMouseMove(e))
+    document.addEventListener('mousemove', e => this.onMouseMove(e))
     document.addEventListener('mouseup', () => this.onMouseUp())
   }
 
@@ -372,8 +373,6 @@ export class WhiteboardPanel {
    * Gemini Nanoの可用性を設定
    */
   setAvailability(availability: GeminiNanoAvailability): void {
-    this.availability = availability
-
     if (this.contentEl && availability !== 'available') {
       this.contentEl.innerHTML = `
         <div class="whiteboard-panel__unavailable">
@@ -431,4 +430,3 @@ export class WhiteboardPanel {
     this.copyBtn = null
   }
 }
-

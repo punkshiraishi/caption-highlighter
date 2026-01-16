@@ -8,6 +8,8 @@ import { WhiteboardPanel, WhiteboardProcessor, getDefaultWhiteboardSettings, get
 import { type UserSettings, applyUserSettingsDefaults } from '~/shared/models/settings'
 import { loadUserSettings, observeSettings } from '~/shared/storage/settings'
 
+/* eslint-disable no-console */
+
 let currentSettings: UserSettings = applyUserSettingsDefaults({})
 
 applyThemeVariables(currentSettings.theme)

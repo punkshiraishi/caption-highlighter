@@ -232,4 +232,3 @@ export class CaptionBuffer {
     this.onFlush = null
   }
 }
-

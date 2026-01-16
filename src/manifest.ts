@@ -64,7 +64,7 @@ export async function getManifest() {
     content_security_policy: {
       extension_pages: isDev
         ? `script-src 'self' http://localhost:${port}; object-src 'self'`
-        : "script-src 'self'; object-src 'self'",
+        : 'script-src \'self\'; object-src \'self\'',
     },
   }
 

@@ -3,10 +3,12 @@
  * キャプションをLLMで処理し、ホワイトボードの状態を管理する
  */
 
-import type { WhiteboardItem, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
-import { createEmptyWhiteboardState } from '~/shared/models/whiteboard'
+/* eslint-disable no-console */
+
 import { getGeminiNanoClient } from '../ai/gemini-nano'
 import { CaptionBuffer } from './caption-buffer'
+import type { WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
+import { createEmptyWhiteboardState } from '~/shared/models/whiteboard'
 
 export type WhiteboardUpdateCallback = (state: WhiteboardState) => void
 
@@ -129,75 +131,6 @@ export class WhiteboardProcessor {
   }
 
   /**
-   * 新しいアイテムを既存のアイテムにマージ
-   */
-  private mergeItems(newItems: WhiteboardItem[]): void {
-    // シンプルなマージ戦略：新しいアイテムを既存アイテムと統合
-    // 同じテキストのアイテムは重複として扱わない
-    const existingTexts = this.collectAllTexts(this.state.items)
-
-    const itemsToAdd = newItems.filter((item) => {
-      const normalizedText = item.text.toLowerCase().trim()
-      return !existingTexts.has(normalizedText)
-    })
-
-    if (itemsToAdd.length === 0)
-      return
-
-    // 新しいアイテムをisNew=trueでマーク
-    const markedItems = this.markAsNew(itemsToAdd)
-
-    // 既存アイテムのisNewフラグをクリア
-    const clearedItems = this.clearNewFlags(this.state.items)
-
-    this.updateState({
-      items: [...clearedItems, ...markedItems],
-      lastUpdated: Date.now(),
-    })
-  }
-
-  /**
-   * すべてのテキストを収集（重複チェック用）
-   */
-  private collectAllTexts(items: WhiteboardItem[]): Set<string> {
-    const texts = new Set<string>()
-
-    const collect = (itemList: WhiteboardItem[]) => {
-      for (const item of itemList) {
-        texts.add(item.text.toLowerCase().trim())
-        if (item.children.length > 0) {
-          collect(item.children)
-        }
-      }
-    }
-
-    collect(items)
-    return texts
-  }
-
-  /**
-   * アイテムにisNewフラグを設定
-   */
-  private markAsNew(items: WhiteboardItem[]): WhiteboardItem[] {
-    return items.map(item => ({
-      ...item,
-      isNew: true,
-      children: this.markAsNew(item.children),
-    }))
-  }
-
-  /**
-   * アイテムのisNewフラグをクリア
-   */
-  private clearNewFlags(items: WhiteboardItem[]): WhiteboardItem[] {
-    return items.map(item => ({
-      ...item,
-      isNew: false,
-      children: this.clearNewFlags(item.children),
-    }))
-  }
-
-  /**
    * 状態を更新してコールバックを呼び出す
    */
   private updateState(partial: Partial<WhiteboardState>): void {
@@ -251,4 +184,3 @@ export class WhiteboardProcessor {
     getGeminiNanoClient().destroy()
   }
 }
-

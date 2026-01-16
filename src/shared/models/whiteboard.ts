@@ -109,4 +109,3 @@ export function createEmptyWhiteboardState(): WhiteboardState {
     isProcessing: false,
   }
 }
-

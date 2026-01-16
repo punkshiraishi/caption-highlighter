@@ -17,17 +17,19 @@ browser.runtime.onStartup.addListener(async () => {
 
 type MessagePayload =
   | { type: 'settings:get' }
-  | { type: 'settings:set'; payload: UserSettings }
+  | { type: 'settings:set', payload: UserSettings }
 
-browser.runtime.onMessage.addListener(async (message: MessagePayload) => {
+browser.runtime.onMessage.addListener(async (message: unknown) => {
   if (!message || typeof message !== 'object')
     return
 
-  if (message.type === 'settings:get')
+  const msg = message as MessagePayload
+
+  if (msg.type === 'settings:get')
     return loadUserSettings()
 
-  if (message.type === 'settings:set') {
-    await saveUserSettings(message.payload)
+  if (msg.type === 'settings:set') {
+    await saveUserSettings(msg.payload)
     return { ok: true }
   }
 })

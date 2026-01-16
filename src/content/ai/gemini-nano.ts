@@ -3,6 +3,8 @@
  * Main World で実行されるブリッジスクリプトとメッセージパッシングで通信
  */
 
+/* eslint-disable no-console */
+
 import type { GeminiNanoAvailability, ParsedLLMResponse } from '~/shared/models/whiteboard'
 
 interface BridgeResponse {
@@ -175,11 +177,13 @@ export class GeminiNanoClient {
       }
     }
 
-    // マークダウンコードブロックを除去
+    // マークダウンコードブロックを除去（正規表現のバックトラッキングを避ける）
     let markdown = response.trim()
-    const codeBlockMatch = markdown.match(/```(?:markdown)?\s*([\s\S]*?)```/)
-    if (codeBlockMatch) {
-      markdown = codeBlockMatch[1].trim()
+    if (markdown.startsWith('```')) {
+      const firstNewline = markdown.indexOf('\n')
+      const lastFence = markdown.lastIndexOf('```')
+      if (firstNewline !== -1 && lastFence > firstNewline)
+        markdown = markdown.slice(firstNewline + 1, lastFence).trim()
     }
 
     // 箇条書きでなくてもテキストがあれば成功とする
@@ -199,7 +203,6 @@ export class GeminiNanoClient {
       error: 'Empty content after parsing',
     }
   }
-
 
   /**
    * セッションを破棄

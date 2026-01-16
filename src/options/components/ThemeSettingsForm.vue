@@ -1,15 +1,3 @@
-<template>
-  <form class="theme" @submit.prevent>
-    <div class="theme__row" v-for="field in fields" :key="field.key">
-      <label>
-        {{ field.label }}
-        <input type="color" :value="local[field.key]" @input="onColorChange(field.key, $event)">
-      </label>
-      <span class="theme__value">{{ local[field.key] }}</span>
-    </div>
-  </form>
-</template>
-
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import type { ThemeSettings } from '~/shared/models/settings'
@@ -41,6 +29,18 @@ function onColorChange(key: ThemeKey, event: Event) {
   emit('change', { [key]: value })
 }
 </script>
+
+<template>
+  <form class="theme" @submit.prevent>
+    <div v-for="field in fields" :key="field.key" class="theme__row">
+      <label>
+        {{ field.label }}
+        <input type="color" :value="local[field.key]" @input="onColorChange(field.key, $event)">
+      </label>
+      <span class="theme__value">{{ local[field.key] }}</span>
+    </div>
+  </form>
+</template>
 
 <style scoped>
 .theme {

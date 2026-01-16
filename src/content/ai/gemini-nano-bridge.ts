@@ -3,6 +3,8 @@
  * ページコンテキストに注入してLanguageModel APIにアクセスするためのブリッジ
  */
 
+/* eslint-disable no-console */
+
 // メッセージの型定義
 interface BridgeRequest {
   type: 'GEMINI_NANO_REQUEST'
@@ -43,76 +45,77 @@ const SYSTEM_PROMPT = `あなたは会議の内容を構造化するアシスタ
 ]`;
 
 // ページコンテキストで実行されるコード
-(function() {
-  let session: any = null;
+(function () {
+  let session: any = null
 
   // APIの存在確認
   function getLanguageModelAPI(): any {
-    if (typeof self !== 'undefined' && (self as any).LanguageModel) {
-      return (self as any).LanguageModel;
-    }
-    if (typeof window !== 'undefined' && (window as any).LanguageModel) {
-      return (window as any).LanguageModel;
-    }
-    if (typeof window !== 'undefined' && (window as any).ai?.languageModel) {
-      return (window as any).ai.languageModel;
-    }
-    return null;
+    const g = globalThis as any
+    if (g.LanguageModel)
+      return g.LanguageModel
+    if (g.ai?.languageModel)
+      return g.ai.languageModel
+    return null
   }
 
   // 可用性チェック
-  async function checkAvailability(): Promise<{ available: boolean; status: string }> {
-    const api = getLanguageModelAPI();
+  async function checkAvailability(): Promise<{ available: boolean, status: string }> {
+    const api = getLanguageModelAPI()
     if (!api) {
-      return { available: false, status: 'not-supported' };
+      return { available: false, status: 'not-supported' }
     }
 
     try {
-      let status: string;
+      let status: string
       if (api.availability) {
         // 新しいAPI
-        status = await api.availability();
-      } else if (api.capabilities) {
+        status = await api.availability()
+      }
+      else if (api.capabilities) {
         // 古いAPI
-        const caps = await api.capabilities();
-        status = caps.available;
-      } else {
-        return { available: false, status: 'not-supported' };
+        const caps = await api.capabilities()
+        status = caps.available
+      }
+      else {
+        return { available: false, status: 'not-supported' }
       }
 
       return {
         available: status === 'readily',
-        status: status
-      };
-    } catch (error) {
-      console.error('[GeminiBridge] Availability check failed:', error);
-      return { available: false, status: 'error' };
+        status,
+      }
+    }
+    catch (error) {
+      console.error('[GeminiBridge] Availability check failed:', error)
+      return { available: false, status: 'error' }
     }
   }
 
   // セッション作成
   async function createSession(): Promise<boolean> {
-    const api = getLanguageModelAPI();
-    if (!api) return false;
+    const api = getLanguageModelAPI()
+    if (!api)
+      return false
 
     try {
       session = await api.create({
-        systemPrompt: SYSTEM_PROMPT
-      });
-      console.log('[GeminiBridge] Session created');
-      return true;
-    } catch (error) {
-      console.error('[GeminiBridge] Failed to create session:', error);
-      return false;
+        systemPrompt: SYSTEM_PROMPT,
+      })
+      console.log('[GeminiBridge] Session created')
+      return true
+    }
+    catch (error) {
+      console.error('[GeminiBridge] Failed to create session:', error)
+      return false
     }
   }
 
   // プロンプト実行
   async function executePrompt(text: string): Promise<string> {
     if (!session) {
-      const created = await createSession();
+      const created = await createSession()
       if (!created) {
-        throw new Error('Failed to create session');
+        throw new Error('Failed to create session')
       }
     }
 
@@ -120,69 +123,72 @@ const SYSTEM_PROMPT = `あなたは会議の内容を構造化するアシスタ
 
 ${text}
 
-JSON配列のみを出力してください：`;
+JSON配列のみを出力してください：`
 
-    return await session.prompt(prompt);
+    return await session.prompt(prompt)
   }
 
   // セッション破棄
   function destroySession(): void {
     if (session) {
       try {
-        session.destroy();
-      } catch (e) {
+        session.destroy()
+      }
+      catch {
         // ignore
       }
-      session = null;
+      session = null
     }
   }
 
   // メッセージハンドラ
   window.addEventListener('message', async (event) => {
-    if (event.source !== window) return;
-    
-    const request = event.data as BridgeRequest;
-    if (request.type !== 'GEMINI_NANO_REQUEST') return;
+    if (event.source !== window)
+      return
 
-    let response: BridgeResponse = {
+    const request = event.data as BridgeRequest
+    if (request.type !== 'GEMINI_NANO_REQUEST')
+      return
+
+    const response: BridgeResponse = {
       type: 'GEMINI_NANO_RESPONSE',
       requestId: request.requestId,
-      success: false
-    };
+      success: false,
+    }
 
     try {
       switch (request.action) {
         case 'checkAvailability': {
-          const result = await checkAvailability();
-          response.success = true;
-          response.data = result;
-          break;
+          const result = await checkAvailability()
+          response.success = true
+          response.data = result
+          break
         }
         case 'createSession': {
-          const created = await createSession();
-          response.success = created;
-          break;
+          const created = await createSession()
+          response.success = created
+          break
         }
         case 'prompt': {
-          const result = await executePrompt(request.payload);
-          response.success = true;
-          response.data = result;
-          break;
+          const result = await executePrompt(request.payload)
+          response.success = true
+          response.data = result
+          break
         }
         case 'destroy': {
-          destroySession();
-          response.success = true;
-          break;
+          destroySession()
+          response.success = true
+          break
         }
       }
-    } catch (error) {
-      response.success = false;
-      response.error = error instanceof Error ? error.message : 'Unknown error';
+    }
+    catch (error) {
+      response.success = false
+      response.error = error instanceof Error ? error.message : 'Unknown error'
     }
 
-    window.postMessage(response, '*');
-  });
+    window.postMessage(response, '*')
+  })
 
-  console.log('[GeminiBridge] Initialized in page context');
-})();
-
+  console.log('[GeminiBridge] Initialized in page context')
+})()

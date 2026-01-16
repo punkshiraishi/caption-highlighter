@@ -11,13 +11,13 @@ export function parseCsv(content: string): CsvParseResult {
   const result = Papa.parse<Record<string, string>>(content, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: header => header.trim(),
+    transformHeader: (header: string) => header.trim(),
   })
 
   if (result.errors.length)
-    throw new Error(result.errors.map(error => error.message).join('\n'))
+    throw new Error(result.errors.map((error: { message: string }) => error.message).join('\n'))
 
-  const headers = result.meta.fields?.map(field => field.trim()).filter(Boolean) ?? []
+  const headers = result.meta.fields?.map((field: string) => field.trim()).filter(Boolean) ?? []
 
   return {
     headers,

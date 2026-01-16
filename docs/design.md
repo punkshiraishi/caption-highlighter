@@ -27,46 +27,46 @@
 ## 3. データモデル
 - `DictionaryEntry`
   ```ts
-  type DictionaryEntry = {
-    id: string;          // uuid
-    term: string;        // ハイライト対象の語句
-    definition: string;  // ポップアップに表示する意味
-    createdAt: string;   // ISO8601
-    updatedAt: string;
-  };
+  interface DictionaryEntry {
+    id: string // uuid
+    term: string // ハイライト対象の語句
+    definition: string // ポップアップに表示する意味
+    createdAt: string // ISO8601
+    updatedAt: string
+  }
   ```
 - `DictionaryState`
   ```ts
-  type DictionaryState = {
-    entries: DictionaryEntry[];
-  };
+  interface DictionaryState {
+    entries: DictionaryEntry[]
+  }
   ```
 - `MatchingSettings`
   ```ts
-  type MatchingSettings = {
-    mode: 'exact' | 'partial' | 'regex';
-    caseSensitive: boolean;
-    debounceMs: number;         // MutationObserver への遅延適用（初期値: 50ms）
-    maxHighlightsPerNode: number; // 性能保護（初期値: 20）
-  };
+  interface MatchingSettings {
+    mode: 'exact' | 'partial' | 'regex'
+    caseSensitive: boolean
+    debounceMs: number // MutationObserver への遅延適用（初期値: 50ms）
+    maxHighlightsPerNode: number // 性能保護（初期値: 20）
+  }
   ```
 - `ThemeSettings`
   ```ts
-  type ThemeSettings = {
-    highlightBg: string;     // WCAG AA 相当を満たすデフォルト
-    highlightText: string;
-    highlightBorder: string;
-    popupBg: string;
-    popupText: string;
-  };
+  interface ThemeSettings {
+    highlightBg: string // WCAG AA 相当を満たすデフォルト
+    highlightText: string
+    highlightBorder: string
+    popupBg: string
+    popupText: string
+  }
   ```
 - `UserSettings`
   ```ts
-  type UserSettings = {
-    dictionary: DictionaryState;
-    matching: MatchingSettings;
-    theme: ThemeSettings;
-  };
+  interface UserSettings {
+    dictionary: DictionaryState
+    matching: MatchingSettings
+    theme: ThemeSettings
+  }
   ```
 
 ## 4. 主要フロー
@@ -131,4 +131,3 @@
 - ハイライト対象ルールの詳細 (部分一致をデフォルト、正規表現は beta 扱い)。
 - Storybook を CI に組み込む方法（GitHub Actions 上のワークフロー定義）。
 - ユーザーが大量辞書を登録した際のパフォーマンス測定基準。
-

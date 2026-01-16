@@ -8,9 +8,7 @@ export class TooltipController {
   private readonly tooltipEl: HTMLDivElement
   private readonly termEl: HTMLDivElement
   private readonly definitionEl: HTMLDivElement
-  private currentTheme: ThemeSettings
   constructor(theme: ThemeSettings) {
-    this.currentTheme = theme
     this.tooltipEl = document.createElement('div')
     this.tooltipEl.id = TOOLTIP_ID
     this.tooltipEl.className = 'caption-highlighter__tooltip'
@@ -34,7 +32,6 @@ export class TooltipController {
   }
 
   updateTheme(theme: ThemeSettings) {
-    this.currentTheme = theme
     this.applyTheme(theme)
   }
 

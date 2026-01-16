@@ -1,31 +1,3 @@
-<template>
-  <form class="matching" @submit.prevent>
-    <label>
-      マッチ方法
-      <select :value="local.mode" @change="update('mode', ($event.target as HTMLSelectElement).value as MatchingSettings['mode'])">
-        <option value="partial">部分一致（デフォルト）</option>
-        <option value="exact">完全一致（単語単位）</option>
-        <option value="regex">正規表現</option>
-      </select>
-    </label>
-
-    <label class="inline">
-      <input type="checkbox" :checked="local.caseSensitive" @change="update('caseSensitive', ($event.target as HTMLInputElement).checked)">
-      大文字・小文字を区別する
-    </label>
-
-    <label>
-      ハイライト遅延 (ms)
-      <input type="number" min="0" max="1000" :value="local.debounceMs" @change="updateNumber('debounceMs', $event)">
-    </label>
-
-    <label>
-      1 ノードあたりの最大ハイライト数
-      <input type="number" min="1" max="100" :value="local.maxHighlightsPerNode" @change="updateNumber('maxHighlightsPerNode', $event)">
-    </label>
-  </form>
-</template>
-
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import type { MatchingSettings } from '~/shared/models/settings'
@@ -54,6 +26,34 @@ function updateNumber<K extends keyof MatchingSettings>(key: K, event: Event) {
   update(key, value as MatchingSettings[K])
 }
 </script>
+
+<template>
+  <form class="matching" @submit.prevent>
+    <label>
+      マッチ方法
+      <select :value="local.mode" @change="update('mode', ($event.target as HTMLSelectElement).value as MatchingSettings['mode'])">
+        <option value="partial">部分一致（デフォルト）</option>
+        <option value="exact">完全一致（単語単位）</option>
+        <option value="regex">正規表現</option>
+      </select>
+    </label>
+
+    <label class="inline">
+      <input type="checkbox" :checked="local.caseSensitive" @change="update('caseSensitive', ($event.target as HTMLInputElement).checked)">
+      大文字・小文字を区別する
+    </label>
+
+    <label>
+      ハイライト遅延 (ms)
+      <input type="number" min="0" max="1000" :value="local.debounceMs" @change="updateNumber('debounceMs', $event)">
+    </label>
+
+    <label>
+      1 ノードあたりの最大ハイライト数
+      <input type="number" min="1" max="100" :value="local.maxHighlightsPerNode" @change="updateNumber('maxHighlightsPerNode', $event)">
+    </label>
+  </form>
+</template>
 
 <style scoped>
 .matching {

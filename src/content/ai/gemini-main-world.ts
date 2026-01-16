@@ -3,6 +3,8 @@
  * メインワールドで実行され、LanguageModel APIに直接アクセスする
  */
 
+/* eslint-disable no-console */
+
 interface BridgeRequest {
   type: 'GEMINI_NANO_REQUEST'
   action: 'checkAvailability' | 'createSession' | 'prompt' | 'destroy'
@@ -18,30 +20,14 @@ interface BridgeResponse {
   error?: string
 }
 
-const SYSTEM_PROMPT = `あなたは会議メモを作成するアシスタントです。
-必ず以下の形式で出力してください：
-
-- トピック1
-  - サブトピック
-- トピック2
-  - サブトピック
-
-「- 」で始まる箇条書きのみ出力。説明文は不要。`
-
 let session: any = null
 
 function getLanguageModelAPI(): any {
-  // @ts-expect-error LanguageModel is a global
-  if (typeof self !== 'undefined' && self.LanguageModel) {
-    // @ts-expect-error LanguageModel is a global
-    return self.LanguageModel
-  }
-  if (typeof window !== 'undefined' && (window as any).LanguageModel) {
-    return (window as any).LanguageModel
-  }
-  if (typeof window !== 'undefined' && (window as any).ai?.languageModel) {
-    return (window as any).ai.languageModel
-  }
+  const g = globalThis as any
+  if (g.LanguageModel)
+    return g.LanguageModel
+  if (g.ai?.languageModel)
+    return g.ai.languageModel
   return null
 }
 
