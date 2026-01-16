@@ -6,9 +6,11 @@
 /* eslint-disable no-console */
 
 import { getGeminiNanoClient } from '../ai/gemini-nano'
+import { getGeminiFlashClient } from '../ai/gemini-flash'
 import { CaptionBuffer } from './caption-buffer'
 import type { WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 import { createEmptyWhiteboardState } from '~/shared/models/whiteboard'
+import type { AiSettings } from '~/shared/models/settings'
 
 export type WhiteboardUpdateCallback = (state: WhiteboardState) => void
 
@@ -18,6 +20,7 @@ export class WhiteboardProcessor {
   private buffer: CaptionBuffer
   private updateCallbacks = new Set<WhiteboardUpdateCallback>()
   private isInitialized = false
+  private ai: AiSettings | null = null
 
   constructor(settings: WhiteboardSettings) {
     this.settings = settings
@@ -30,21 +33,51 @@ export class WhiteboardProcessor {
   }
 
   /**
-   * 初期化（Gemini Nanoの可用性チェック）
+   * AI設定を更新（provider切替など）
+   */
+  setAiSettings(ai: AiSettings): void {
+    const prev = this.ai?.whiteboardProvider
+    this.ai = ai
+
+    // provider切替時は初期化状態をリセット
+    if (prev && prev !== ai.whiteboardProvider) {
+      this.isInitialized = false
+      if (prev === 'nano')
+        getGeminiNanoClient().destroy()
+    }
+  }
+
+  /**
+   * 初期化（providerに応じて準備）
    */
   async initialize(): Promise<boolean> {
-    const client = getGeminiNanoClient()
-    const availability = await client.checkAvailability()
-
-    if (availability === 'available') {
-      const sessionCreated = await client.createSession()
-      this.isInitialized = sessionCreated
-      return sessionCreated
+    if (!this.ai) {
+      console.warn('[Whiteboard] AI settings not set')
+      this.isInitialized = false
+      return false
     }
 
-    console.warn('[Whiteboard] Gemini Nano not available:', availability)
-    this.isInitialized = false
-    return false
+    if (this.ai.whiteboardProvider === 'nano') {
+      const client = getGeminiNanoClient()
+      const availability = await client.checkAvailability()
+
+      if (availability === 'available') {
+        const sessionCreated = await client.createSession()
+        this.isInitialized = sessionCreated
+        return sessionCreated
+      }
+
+      console.warn('[Whiteboard] Gemini Nano not available:', availability)
+      this.isInitialized = false
+      return false
+    }
+
+    // flash
+    const flash = getGeminiFlashClient()
+    const config = await flash.getConfig()
+    const ok = config.allowSendCaptionsToCloud && config.hasApiKey && config.hasPermission
+    this.isInitialized = ok
+    return ok
   }
 
   /**
@@ -96,6 +129,10 @@ export class WhiteboardProcessor {
       console.warn('[Whiteboard] Processor not initialized')
       return
     }
+    if (!this.ai) {
+      console.warn('[Whiteboard] AI settings not set')
+      return
+    }
 
     // LLM処理中は新しいリクエストをスキップ
     if (this.state.isProcessing) {
@@ -107,9 +144,10 @@ export class WhiteboardProcessor {
     this.updateState({ isProcessing: true })
 
     try {
-      const client = getGeminiNanoClient()
       // 前回の要約を含めてLLMに送信
-      const result = await client.summarize(text, this.state.markdownContent)
+      const result = this.ai.whiteboardProvider === 'flash'
+        ? await getGeminiFlashClient().summarize(text, this.state.markdownContent, this.ai.flashModel)
+        : await getGeminiNanoClient().summarize(text, this.state.markdownContent)
 
       if (result.success && result.markdownContent) {
         this.updateState({

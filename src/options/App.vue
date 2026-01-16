@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import browser from 'webextension-polyfill'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import DictionaryTable from './components/DictionaryTable.vue'
 import ImportPreview from './components/ImportPreview.vue'
 import { useSettingsStore } from './stores/settings'
 import type { DictionaryImportStats } from '~/shared/utils/csv'
 import { buildDictionaryFromCsv, parseCsv } from '~/shared/utils/csv'
+import { loadSecrets, saveSecrets } from '~/shared/storage/secrets'
+import { GEMINI_FLASH_FIXED_MODEL } from '~/shared/ai/gemini'
 
 const store = useSettingsStore()
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -12,6 +15,15 @@ const filter = computed({
   get: () => store.filter,
   set: value => store.setFilter(value),
 })
+
+const apiKey = ref('')
+const permGranted = ref<boolean | null>(null)
+const flashTestResult = ref<string | null>(null)
+const flashTestError = ref<string | null>(null)
+const savingKey = ref(false)
+
+const flashOrigins = ['https://generativelanguage.googleapis.com/*']
+const isFlash = computed(() => store.ai.whiteboardProvider === 'flash')
 
 const headers = ref<string[]>([])
 const csvRows = ref<Record<string, string>[]>([])
@@ -31,8 +43,58 @@ watch(() => [selection.term, selection.definition, selection.alias], () => {
 })
 
 onMounted(() => {
-  store.initialize()
+  void initialize()
 })
+
+async function initialize() {
+  await store.initialize()
+  const secrets = await loadSecrets()
+  apiKey.value = secrets.geminiApiKey || ''
+  await refreshPermission()
+}
+
+async function refreshPermission() {
+  permGranted.value = await browser.permissions.contains({ origins: flashOrigins })
+}
+
+async function requestPermission() {
+  flashTestResult.value = null
+  flashTestError.value = null
+  const ok = await browser.permissions.request({ origins: flashOrigins })
+  permGranted.value = ok
+}
+
+async function persistApiKey() {
+  savingKey.value = true
+  flashTestResult.value = null
+  flashTestError.value = null
+  try {
+    await saveSecrets({ geminiApiKey: apiKey.value })
+  }
+  finally {
+    savingKey.value = false
+  }
+}
+
+async function testFlash() {
+  flashTestResult.value = null
+  flashTestError.value = null
+  try {
+    const resp = await browser.runtime.sendMessage({
+      type: 'ai:flash:test',
+      payload: { model: store.ai.flashModel },
+    }) as { ok: boolean, text?: string, error?: string }
+
+    if (!resp.ok) {
+      flashTestError.value = resp.error || '接続テストに失敗しました'
+      return
+    }
+    flashTestResult.value = resp.text || '(ok)'
+  }
+  catch (error) {
+    flashTestError.value = error instanceof Error ? error.message : String(error)
+  }
+}
 
 function triggerFile() {
   fileInput.value?.click()
@@ -176,6 +238,89 @@ async function handleReset() {
         {{ importError }}
       </p>
     </section>
+
+    <section class="panel">
+      <header class="panel__header">
+        <div>
+          <h2>ホワイトボード要約</h2>
+          <p class="panel__subtitle">
+            会議メモを自動で構造化します。Flash は beta（外部送信あり・既定OFF）です。
+          </p>
+        </div>
+      </header>
+
+      <div class="ai-grid">
+        <label class="ai-field">
+          <span>要約エンジン</span>
+          <select
+            :value="store.ai.whiteboardProvider"
+            @change="store.setWhiteboardProvider(($event.target as HTMLSelectElement).value as any)"
+          >
+            <option value="nano">Gemini Nano（ローカル）</option>
+            <option value="flash">Gemini Flash（クラウド / beta）</option>
+          </select>
+        </label>
+
+        <div v-if="isFlash" class="ai-field">
+          <span>Flash model（固定）</span>
+          <div class="ai-row">
+            <span class="ai-pill ai-pill--ok">{{ GEMINI_FLASH_FIXED_MODEL }}</span>
+          </div>
+          <span class="ai-help">ホワイトボード要約の Flash はモデルを固定しています（テストページでは任意選択できます）。</span>
+        </div>
+
+        <label v-if="isFlash" class="ai-field ai-field--wide">
+          <span>AI Studio API Key（Secrets）</span>
+          <div class="ai-row">
+            <input v-model="apiKey" type="password" placeholder="AIza..." autocomplete="off">
+            <button class="button" type="button" :disabled="savingKey" @click="persistApiKey">
+              {{ savingKey ? '保存中...' : '保存' }}
+            </button>
+          </div>
+          <span class="ai-help">API Key は拡張の local storage に保存されます（Meetページには表示しません）。</span>
+        </label>
+
+        <label v-if="isFlash" class="ai-field ai-field--wide">
+          <span>外部送信の同意（必須）</span>
+          <label class="ai-check">
+            <input
+              type="checkbox"
+              :checked="store.ai.allowSendCaptionsToCloud"
+              @change="store.updateAi({ allowSendCaptionsToCloud: ($event.target as HTMLInputElement).checked })"
+            >
+            字幕テキストを Gemini Flash（外部API）へ送信することに同意します（beta）
+          </label>
+        </label>
+
+        <div v-if="isFlash" class="ai-field ai-field--wide">
+          <span>権限</span>
+          <div class="ai-row">
+            <button class="button button--secondary" type="button" @click="requestPermission">
+              権限を許可
+            </button>
+            <button class="button button--secondary" type="button" @click="refreshPermission">
+              状態を更新
+            </button>
+            <span class="ai-pill" :class="{ 'ai-pill--ok': permGranted, 'ai-pill--ng': permGranted === false }">
+              {{ permGranted === null ? '不明' : (permGranted ? '許可済み' : '未許可') }}
+            </span>
+          </div>
+          <span class="ai-help">Flash 利用には `generativelanguage.googleapis.com` へのアクセス権限が必要です。</span>
+        </div>
+
+        <div v-if="isFlash" class="ai-field ai-field--wide">
+          <span>接続テスト</span>
+          <div class="ai-row">
+            <button class="button" type="button" @click="testFlash">
+              接続テスト
+            </button>
+            <span v-if="flashTestResult" class="ai-ok">OK</span>
+            <span v-if="flashTestError" class="ai-ng">{{ flashTestError }}</span>
+          </div>
+          <pre v-if="flashTestResult" class="ai-preview">{{ flashTestResult }}</pre>
+        </div>
+      </div>
+    </section>
   </main>
   <div v-else class="loading">
     設定を読込中...
@@ -226,6 +371,95 @@ async function handleReset() {
 .panel__subtitle {
   margin: 6px 0 0;
   color: #94a3b8;
+}
+
+.ai-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #cbd5f5;
+}
+
+.ai-field > span {
+  color: #cbd5f5;
+}
+
+.ai-field--wide {
+  grid-column: 1 / -1;
+}
+
+.ai-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ai-help {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.ai-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #e2e8f0;
+}
+
+.ai-pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #94a3b8;
+}
+
+.ai-pill--ok {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #86efac;
+}
+
+.ai-pill--ng {
+  border-color: rgba(249, 115, 22, 0.4);
+  color: #fdba74;
+}
+
+.ai-ok {
+  color: #86efac;
+  font-size: 13px;
+}
+
+.ai-ng {
+  color: #fdba74;
+  font-size: 13px;
+}
+
+.ai-preview {
+  margin-top: 10px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e2e8f0;
+  font-size: 12px;
+}
+
+.ai-grid select,
+.ai-grid input[type="text"],
+.ai-grid input[type="password"] {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: inherit;
 }
 
 .button {

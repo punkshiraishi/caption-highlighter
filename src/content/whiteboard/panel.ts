@@ -3,7 +3,9 @@
  * ドラッグ可能、リサイズ可能なフローティングウィンドウ
  */
 
+import { getGeminiFlashClient } from '../ai/gemini-flash'
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
+import type { WhiteboardProvider } from '~/shared/models/settings'
 
 /* eslint-disable no-console */
 
@@ -22,10 +24,23 @@ export class WhiteboardPanel {
   private panel: HTMLElement | null = null
   private toggle: HTMLElement | null = null
   private contentEl: HTMLElement | null = null
+  private markdownViewEl: HTMLElement | null = null
+  private imageViewEl: HTMLElement | null = null
   private statusEl: HTMLElement | null = null
   private footerEl: HTMLElement | null = null
+  private footerInfoEl: HTMLElement | null = null
   private copyBtn: HTMLElement | null = null
+  private imageBtn: HTMLElement | null = null
+  private markdownTabBtn: HTMLElement | null = null
+  private imageTabBtn: HTMLElement | null = null
+  private downloadBtn: HTMLElement | null = null
+  private imageEl: HTMLImageElement | null = null
+  private imageStatusEl: HTMLElement | null = null
+  private imageEmptyEl: HTMLElement | null = null
   private markdownContent = ''
+  private activeTab: 'markdown' | 'image' = 'markdown'
+  private imageDataUrl = ''
+  private imageLoading = false
   private settings: WhiteboardSettings
   private isVisible = false
   private isMinimized = false
@@ -84,13 +99,33 @@ export class WhiteboardPanel {
           <span class="whiteboard-panel__status"></span>
         </div>
         <div class="whiteboard-panel__controls">
+          <button class="whiteboard-panel__btn whiteboard-panel__btn--image" title="画像出力">🖼️</button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー">📄</button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--minimize" title="最小化">─</button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--close" title="閉じる">✕</button>
         </div>
       </div>
+      <div class="whiteboard-panel__tabs">
+        <button class="whiteboard-panel__tab whiteboard-panel__tab--markdown is-active" data-tab="markdown">メモ</button>
+        <button class="whiteboard-panel__tab whiteboard-panel__tab--image" data-tab="image">画像</button>
+      </div>
       <div class="whiteboard-panel__content">
-        <pre class="whiteboard-panel__markdown"></pre>
+        <div class="whiteboard-panel__view whiteboard-panel__view--markdown is-active">
+          <pre class="whiteboard-panel__markdown"></pre>
+        </div>
+        <div class="whiteboard-panel__view whiteboard-panel__view--image">
+          <div class="whiteboard-panel__image-toolbar">
+            <span class="whiteboard-panel__image-hint">画像はボタン押下で生成されます</span>
+            <div class="whiteboard-panel__image-actions">
+              <button class="whiteboard-panel__btn whiteboard-panel__btn--download" title="画像を保存">DL</button>
+            </div>
+          </div>
+          <div class="whiteboard-panel__image-canvas-wrap">
+            <img class="whiteboard-panel__image" alt="ホワイトボード画像">
+            <div class="whiteboard-panel__image-status"></div>
+            <div class="whiteboard-panel__image-empty">画像を作成するには議事録が必要です</div>
+          </div>
+        </div>
       </div>
       <div class="whiteboard-panel__footer">
         <span class="whiteboard-panel__footer-info">Gemini Nano で構造化</span>
@@ -103,9 +138,19 @@ export class WhiteboardPanel {
 
     // 要素の参照を取得
     this.contentEl = this.panel.querySelector('.whiteboard-panel__markdown')
+    this.markdownViewEl = this.panel.querySelector('.whiteboard-panel__view--markdown')
+    this.imageViewEl = this.panel.querySelector('.whiteboard-panel__view--image')
     this.statusEl = this.panel.querySelector('.whiteboard-panel__status')
     this.footerEl = this.panel.querySelector('.whiteboard-panel__footer-count')
+    this.footerInfoEl = this.panel.querySelector('.whiteboard-panel__footer-info')
     this.copyBtn = this.panel.querySelector('.whiteboard-panel__btn--copy')
+    this.imageBtn = this.panel.querySelector('.whiteboard-panel__btn--image')
+    this.markdownTabBtn = this.panel.querySelector('.whiteboard-panel__tab--markdown')
+    this.imageTabBtn = this.panel.querySelector('.whiteboard-panel__tab--image')
+    this.downloadBtn = this.panel.querySelector('.whiteboard-panel__btn--download')
+    this.imageEl = this.panel.querySelector('.whiteboard-panel__image')
+    this.imageStatusEl = this.panel.querySelector('.whiteboard-panel__image-status')
+    this.imageEmptyEl = this.panel.querySelector('.whiteboard-panel__image-empty')
 
     // 初期メッセージを表示
     if (this.contentEl) {
@@ -134,6 +179,9 @@ export class WhiteboardPanel {
     // コピーボタン
     this.copyBtn?.addEventListener('click', () => this.copyToClipboard())
 
+    // 画像出力ボタン（生成してタブを切り替え）
+    this.imageBtn?.addEventListener('click', () => this.generateImage())
+
     // 最小化ボタン
     const minimizeBtn = this.panel.querySelector('.whiteboard-panel__btn--minimize')
     minimizeBtn?.addEventListener('click', () => this.toggleMinimize())
@@ -145,6 +193,11 @@ export class WhiteboardPanel {
     // リサイズハンドル
     const resizeHandle = this.panel.querySelector('.whiteboard-panel__resize')
     resizeHandle?.addEventListener('mousedown', e => this.startResize(e as MouseEvent))
+
+    // タブ切り替え
+    this.markdownTabBtn?.addEventListener('click', () => this.switchTab('markdown'))
+    this.imageTabBtn?.addEventListener('click', () => this.switchTab('image'))
+    this.downloadBtn?.addEventListener('click', () => this.downloadImage())
 
     // グローバルイベント
     document.addEventListener('mousemove', e => this.onMouseMove(e))
@@ -386,6 +439,28 @@ export class WhiteboardPanel {
     }
   }
 
+  setProvider(provider: WhiteboardProvider): void {
+    if (!this.footerInfoEl)
+      return
+    this.footerInfoEl.textContent = provider === 'flash'
+      ? 'Gemini Flash で構造化（beta）'
+      : 'Gemini Nano で構造化'
+  }
+
+  setFlashUnavailable(message: string): void {
+    if (!this.contentEl)
+      return
+    this.contentEl.innerHTML = `
+      <div class="whiteboard-panel__unavailable">
+        <div class="whiteboard-panel__unavailable-icon">⚠️</div>
+        <div class="whiteboard-panel__unavailable-title">Gemini Flash が利用できません</div>
+        <div class="whiteboard-panel__unavailable-text">
+          ${message}
+        </div>
+      </div>
+    `
+  }
+
   /**
    * 可用性に応じたメッセージを取得
    */
@@ -410,6 +485,87 @@ export class WhiteboardPanel {
   }
 
   /**
+   * タブを切り替え
+   */
+  private switchTab(tab: 'markdown' | 'image'): void {
+    this.activeTab = tab
+    const isMarkdown = tab === 'markdown'
+    this.markdownViewEl?.classList.toggle('is-active', isMarkdown)
+    this.imageViewEl?.classList.toggle('is-active', !isMarkdown)
+    this.markdownTabBtn?.classList.toggle('is-active', isMarkdown)
+    this.imageTabBtn?.classList.toggle('is-active', !isMarkdown)
+    if (!isMarkdown) {
+      this.refreshImageView()
+    }
+  }
+
+  /**
+   * 画像生成を実行
+   */
+  private async generateImage(): Promise<void> {
+    const markdown = this.markdownContent.trim()
+    if (!markdown) {
+      this.toggleImageEmpty(true)
+      this.setImageStatus('議事録が空です')
+      return
+    }
+
+    this.toggleImageEmpty(false)
+    this.switchTab('image')
+
+    if (this.imageLoading)
+      return
+    this.imageLoading = true
+    this.setImageStatus('画像生成中...')
+
+    const result = await getGeminiFlashClient().generateWhiteboardImage(markdown)
+    this.imageLoading = false
+    if (!result.success || !result.dataUrl) {
+      this.imageDataUrl = ''
+      this.refreshImageView()
+      this.setImageStatus(result.error || '画像生成に失敗しました')
+      return
+    }
+
+    this.imageDataUrl = result.dataUrl
+    this.refreshImageView()
+    this.setImageStatus('')
+  }
+
+  private refreshImageView(): void {
+    if (this.imageEl) {
+      this.imageEl.src = this.imageDataUrl || ''
+      this.imageEl.classList.toggle('is-empty', !this.imageDataUrl)
+    }
+    this.toggleImageEmpty(!this.imageDataUrl)
+  }
+
+  private toggleImageEmpty(visible: boolean): void {
+    this.imageEmptyEl?.classList.toggle('is-visible', visible)
+  }
+
+  private setImageStatus(text: string): void {
+    if (!this.imageStatusEl)
+      return
+    this.imageStatusEl.textContent = text
+    this.imageStatusEl.classList.toggle('is-visible', Boolean(text))
+  }
+
+  private downloadImage(): void {
+    if (!this.imageDataUrl)
+      return
+    try {
+      const link = document.createElement('a')
+      link.href = this.imageDataUrl
+      link.download = `whiteboard-${Date.now()}.png`
+      link.click()
+    }
+    catch (error) {
+      console.error('[Whiteboard] Failed to download image:', error)
+    }
+  }
+
+  /**
    * パネルが表示されているか
    */
   isShown(): boolean {
@@ -425,8 +581,18 @@ export class WhiteboardPanel {
     this.panel = null
     this.toggle = null
     this.contentEl = null
+    this.markdownViewEl = null
+    this.imageViewEl = null
     this.statusEl = null
     this.footerEl = null
+    this.footerInfoEl = null
     this.copyBtn = null
+    this.imageBtn = null
+    this.markdownTabBtn = null
+    this.imageTabBtn = null
+    this.downloadBtn = null
+    this.imageEl = null
+    this.imageStatusEl = null
+    this.imageEmptyEl = null
   }
 }

@@ -40,6 +40,9 @@ export async function getManifest() {
       'storage',
     ],
     host_permissions: ['https://meet.google.com/*'],
+    optional_host_permissions: [
+      'https://generativelanguage.googleapis.com/*',
+    ],
     content_scripts: [
       {
         matches: ['https://meet.google.com/*'],

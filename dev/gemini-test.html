@@ -294,6 +294,80 @@
     .samples__btn:hover {
       background: #444;
     }
+
+    .image-panel__toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .image-panel__hint {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .image-panel__canvas-wrap {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--bg);
+      min-height: 240px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .image-panel__image {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .image-panel__image.is-empty {
+      display: none;
+    }
+
+    .image-panel__status {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--text);
+      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .image-panel__status.is-visible {
+      opacity: 1;
+    }
+
+    .image-panel__empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .image-panel__empty.is-visible {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -319,9 +393,14 @@
       <input id="apiKey" type="password" placeholder="AIza...">
     </div>
 
-    <div id="flashModelField" class="field hidden" style="min-width: 260px;">
+    <div id="flashModelField" class="field hidden" style="min-width: 360px;">
       <label for="flashModel">Flash model</label>
-      <input id="flashModel" type="text" placeholder="gemini-2.0-flash">
+      <select id="flashModelSelect" class="hidden"></select>
+      <input id="flashModel" type="text" placeholder="gemini-2.5-flash-lite-latest">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="loadModelsBtn" class="btn btn--secondary" type="button">モデル一覧を取得</button>
+        <span id="loadModelsStatus" style="font-size:12px; color: var(--text-muted);"></span>
+      </div>
     </div>
   </div>
 
@@ -372,6 +451,24 @@
       </div>
       <div class="panel__content">
         <pre id="output">結果がここに表示されます...</pre>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__header">
+        <span class="panel__title">🖼️ 画像出力（ホワイトボード風）</span>
+      </div>
+      <div class="image-panel__toolbar">
+        <span class="image-panel__hint">構造化メモから自動生成されます</span>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="renderImageBtn" class="btn btn--secondary" type="button">画像を更新</button>
+          <button id="downloadImageBtn" class="btn btn--secondary" type="button">画像を保存</button>
+        </div>
+      </div>
+      <div class="image-panel__canvas-wrap">
+        <img id="imageEl" class="image-panel__image is-empty" alt="ホワイトボード画像">
+        <div id="imageStatus" class="image-panel__status"></div>
+        <div id="imageEmpty" class="image-panel__empty is-visible">画像を作成するには議事録が必要です</div>
       </div>
     </div>
   </div>
@@ -555,7 +652,19 @@ Tryとして次回挑戦することです。
     const flashModelFieldEl = document.getElementById('flashModelField');
     const apiKeyEl = document.getElementById('apiKey');
     const flashModelEl = document.getElementById('flashModel');
+    const flashModelSelectEl = document.getElementById('flashModelSelect');
+    const loadModelsBtn = document.getElementById('loadModelsBtn');
+    const loadModelsStatusEl = document.getElementById('loadModelsStatus');
     const flashHintEl = document.getElementById('flashHint');
+    const renderImageBtn = document.getElementById('renderImageBtn');
+    const downloadImageBtn = document.getElementById('downloadImageBtn');
+    const imageEl = document.getElementById('imageEl');
+    const imageStatusEl = document.getElementById('imageStatus');
+    const imageEmpty = document.getElementById('imageEmpty');
+
+    let latestImageDataUrl = '';
+    let cachedImageModel = '';
+    let cachedImageModelAt = 0;
 
     const LS_PROVIDER = 'geminiTest:provider';
     const LS_API_KEY = 'geminiTest:apiKey';
@@ -620,6 +729,173 @@ Tryとして次回挑戦することです。
         : `<span>${text}</span>`;
     }
 
+    function toggleImageEmpty(visible) {
+      if (!imageEmpty) return;
+      imageEmpty.classList.toggle('is-visible', visible);
+    }
+
+    function setImageStatus(text) {
+      if (!imageStatusEl) return;
+      imageStatusEl.textContent = text;
+      imageStatusEl.classList.toggle('is-visible', Boolean(text));
+    }
+
+    function setImageDataUrl(dataUrl) {
+      latestImageDataUrl = dataUrl || '';
+      if (!imageEl) return;
+      if (latestImageDataUrl) {
+        imageEl.src = latestImageDataUrl;
+        imageEl.classList.remove('is-empty');
+        toggleImageEmpty(false);
+      } else {
+        imageEl.removeAttribute('src');
+        imageEl.classList.add('is-empty');
+        toggleImageEmpty(true);
+      }
+    }
+
+    function buildImagePrompt(markdown) {
+      const safe = (markdown || '').trim() || '（議事録が空です）';
+      return `あなたは画像生成AIです。以下の議事録を「ホワイトボードにまとめた一枚画像」として生成してください。
+
+要件:
+- 出力は文字を含む「画像」(SVGではなくラスター画像)。
+- 白いホワイトボードの質感、薄い罫線や枠線、マーカーで書いたような手書き風。
+- ホワイトボードのフレームや周りの風景は含めない
+- タイトル「議事録」を上部中央に配置。
+- 議事録は短い箇条書きで、見出しと本文を整理して読みやすく。
+- 余白を取り、セクションごとに囲みや区切りを入れる。
+- 色は黒/濃いグレーを基調に、アクセント1〜2色まで。
+- 文字は読みやすいサイズで、詰め込みすぎない。
+
+議事録:
+${safe}
+
+出力: 1枚の画像。`;
+    }
+
+    async function resolveImageModel(apiKey) {
+      const ttl = 5 * 60 * 1000;
+      if (cachedImageModel && (Date.now() - cachedImageModelAt) < ttl) {
+        return cachedImageModel;
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
+      const res = await fetch(url, { method: 'GET' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        return '';
+      }
+
+      const models = Array.isArray(data?.models) ? data.models : [];
+      const candidates = models.filter(m => Array.isArray(m?.supportedGenerationMethods));
+      const withGenerateContent = candidates.filter(m => m.supportedGenerationMethods.includes('generateContent'));
+      const imageCandidates = withGenerateContent.filter(m => /image/i.test(String(m?.name || '')));
+      const preferredOrder = [
+        'gemini-3-pro-image-preview',
+        'gemini-2.5-flash-image',
+        'gemini-2.0-flash-exp-image-generation',
+      ];
+
+      let picked = null;
+      for (const name of preferredOrder) {
+        const found = imageCandidates.find(m => String(m?.name || '').endsWith(name));
+        if (found) {
+          picked = found;
+          break;
+        }
+      }
+      if (!picked)
+        picked = imageCandidates[0];
+      if (!picked?.name) {
+        return '';
+      }
+
+      const name = String(picked.name || '');
+      const modelName = name.startsWith('models/') ? name.slice('models/'.length) : name;
+      cachedImageModel = modelName;
+      cachedImageModelAt = Date.now();
+      return modelName;
+    }
+
+    async function generateImage() {
+      const markdown = outputEl.textContent || '';
+      if (!markdown.trim()) {
+        setImageDataUrl('');
+        setImageStatus('議事録が空です');
+        return;
+      }
+
+      const apiKey = (apiKeyEl.value || '').trim();
+      if (!apiKey) {
+        setImageStatus('API Key が未設定です');
+        return;
+      }
+
+      setImageStatus('画像生成中...');
+      try {
+        const prompt = buildImagePrompt(markdown);
+        const model = await resolveImageModel(apiKey);
+        if (!model) {
+          setImageStatus('画像生成モデルが見つかりませんでした');
+          return;
+        }
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig: {
+              responseModalities: ['IMAGE'],
+              imageConfig: {
+                aspectRatio: '16:9',
+              },
+            },
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = data?.error?.message || `HTTP ${res.status}`;
+          setImageStatus(`エラー: ${msg}`);
+          return;
+        }
+
+        const base64 =
+          data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data
+          || data?.images?.[0]?.bytesBase64Encoded
+          || data?.generatedImages?.[0]?.bytesBase64Encoded;
+        const mimeType =
+          data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType
+          || data?.images?.[0]?.mimeType
+          || data?.generatedImages?.[0]?.mimeType
+          || 'image/png';
+
+        if (!base64) {
+          setImageStatus('画像データが取得できませんでした');
+          return;
+        }
+
+        setImageDataUrl(`data:${mimeType};base64,${base64}`);
+        setImageStatus('');
+      } catch (error) {
+        setImageStatus(`エラー: ${error?.message || String(error)}`);
+      }
+    }
+
+    function downloadImage() {
+      if (!latestImageDataUrl) return;
+      const link = document.createElement('a');
+      link.href = latestImageDataUrl;
+      link.download = `whiteboard-test-${Date.now()}.png`;
+      link.click();
+    }
+
     function getProvider() {
       return providerEl.value === 'flash' ? 'flash' : 'nano';
     }
@@ -629,6 +905,13 @@ Tryとして次回挑戦することです。
       flashModelFieldEl.classList.toggle('hidden', !visible);
       flashHintEl.classList.toggle('hidden', !visible);
       testBtn.classList.toggle('hidden', !visible);
+    }
+
+    function getFlashModel() {
+      const selVisible = !flashModelSelectEl.classList.contains('hidden');
+      if (selVisible && flashModelSelectEl.value)
+        return flashModelSelectEl.value;
+      return (flashModelEl.value || '').trim() || 'gemini-2.5-flash-lite-latest';
     }
 
     function updateRunButtonState() {
@@ -734,7 +1017,7 @@ ${previous}
       }
 
       const apiKey = (apiKeyEl.value || '').trim();
-      const model = (flashModelEl.value || '').trim() || 'gemini-2.0-flash';
+      const model = getFlashModel();
       if (!apiKey) {
         outputEl.textContent = 'API Key が未設定です';
         return;
@@ -798,7 +1081,7 @@ ${previous}
 
     async function testFlashConnection() {
       const apiKey = (apiKeyEl.value || '').trim();
-      const model = (flashModelEl.value || '').trim() || 'gemini-2.0-flash';
+      const model = getFlashModel();
       if (!apiKey) {
         outputEl.textContent = 'API Key が未設定です';
         return;
@@ -845,6 +1128,8 @@ ${previous}
       outputEl.textContent = '結果がここに表示されます...';
       promptLogEl.textContent = '-';
       previousSummary = '';
+      setImageDataUrl('');
+      setImageStatus('');
     }
 
     // サンプル選択
@@ -858,6 +1143,8 @@ ${previous}
     runBtn.addEventListener('click', executePrompt);
     clearBtn.addEventListener('click', clearAll);
     testBtn.addEventListener('click', testFlashConnection);
+    renderImageBtn.addEventListener('click', generateImage);
+    downloadImageBtn.addEventListener('click', downloadImage);
 
     providerEl.addEventListener('change', async () => {
       const provider = getProvider();
@@ -894,6 +1181,71 @@ ${previous}
       } catch {}
     });
 
+    flashModelSelectEl.addEventListener('change', () => {
+      flashModelEl.value = flashModelSelectEl.value;
+      try {
+        localStorage.setItem(LS_FLASH_MODEL, flashModelEl.value);
+      } catch {}
+    });
+
+    async function loadFlashModels() {
+      loadModelsStatusEl.textContent = '';
+      const apiKey = (apiKeyEl.value || '').trim();
+      if (!apiKey) {
+        loadModelsStatusEl.textContent = 'API Key を入力してください';
+        return;
+      }
+
+      loadModelsBtn.disabled = true;
+      loadModelsStatusEl.textContent = '取得中...';
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
+        const res = await fetch(url, { method: 'GET' });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = data?.error?.message || `HTTP ${res.status}`;
+          loadModelsStatusEl.textContent = `取得失敗: ${msg}`;
+          return;
+        }
+
+        const models = (data?.models || [])
+          .filter(m => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => String(m?.name || ''))
+          .filter(Boolean)
+          .map(name => name.startsWith('models/') ? name.slice('models/'.length) : name)
+          .filter(name => name.includes('flash'));
+
+        const unique = Array.from(new Set(models)).sort((a, b) => a.localeCompare(b));
+        flashModelSelectEl.innerHTML = '';
+        for (const m of unique) {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          flashModelSelectEl.appendChild(opt);
+        }
+
+        if (unique.length) {
+          flashModelSelectEl.classList.remove('hidden');
+          const current = (flashModelEl.value || '').trim();
+          flashModelSelectEl.value = unique.includes(current) ? current : unique[0];
+          flashModelEl.value = flashModelSelectEl.value;
+          try {
+            localStorage.setItem(LS_FLASH_MODEL, flashModelEl.value);
+          } catch {}
+          loadModelsStatusEl.textContent = `${unique.length} 件`;
+        } else {
+          flashModelSelectEl.classList.add('hidden');
+          loadModelsStatusEl.textContent = '該当モデルなし';
+        }
+      } catch (e) {
+        loadModelsStatusEl.textContent = `取得失敗: ${e?.message || String(e)}`;
+      } finally {
+        loadModelsBtn.disabled = false;
+      }
+    }
+
+    loadModelsBtn.addEventListener('click', loadFlashModels);
+
     document.querySelectorAll('.samples__btn').forEach(btn => {
       btn.addEventListener('click', () => {
         selectSample(btn.dataset.sample);
@@ -910,9 +1262,9 @@ ${previous}
       if (savedKey)
         apiKeyEl.value = savedKey;
       const savedModel = localStorage.getItem(LS_FLASH_MODEL);
-      flashModelEl.value = savedModel || 'gemini-2.0-flash';
+      flashModelEl.value = savedModel || 'gemini-2.5-flash-lite-latest';
     } catch {
-      flashModelEl.value = 'gemini-2.0-flash';
+      flashModelEl.value = 'gemini-2.5-flash-lite-latest';
     }
 
     setFlashUiVisible(getProvider() === 'flash');

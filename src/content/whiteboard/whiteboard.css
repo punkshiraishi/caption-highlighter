@@ -118,9 +118,57 @@
 /* ===== コンテンツ ===== */
 .whiteboard-panel__content {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
   min-height: 100px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== タブ ===== */
+.whiteboard-panel__tabs {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.whiteboard-panel__tab {
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: #aaa;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.whiteboard-panel__tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.whiteboard-panel__tab.is-active {
+  background: rgba(99, 102, 241, 0.25);
+  color: #e0e7ff;
+}
+
+/* ===== ビュー ===== */
+.whiteboard-panel__view {
+  flex: 1;
+  display: none;
+  overflow: auto;
+}
+
+.whiteboard-panel__view.is-active {
+  display: block;
+}
+
+.whiteboard-panel__view--image.is-active {
+  display: flex;
+  flex-direction: column;
 }
 
 /* ===== マークダウン表示 ===== */
@@ -141,6 +189,10 @@
   display: none;
 }
 
+.whiteboard-panel--minimized .whiteboard-panel__tabs {
+  display: none;
+}
+
 /* スクロールバー */
 .whiteboard-panel__content::-webkit-scrollbar {
   width: 6px;
@@ -158,6 +210,91 @@
 
 .whiteboard-panel__content::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
+}
+
+/* ===== 画像ビュー ===== */
+.whiteboard-panel__image-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.whiteboard-panel__image-hint {
+  font-size: 10px;
+  color: #888;
+}
+
+.whiteboard-panel__image-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.whiteboard-panel__btn--download {
+  font-size: 11px;
+  width: auto;
+  padding: 0 8px;
+}
+
+.whiteboard-panel__image-canvas-wrap {
+  position: relative;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: auto;
+  flex: 1;
+}
+
+.whiteboard-panel__image {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.whiteboard-panel__image.is-empty {
+  display: none;
+}
+
+.whiteboard-panel__image-status {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.whiteboard-panel__image-status.is-visible {
+  opacity: 1;
+}
+
+.whiteboard-panel__image-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.whiteboard-panel__image-empty.is-visible {
+  opacity: 1;
 }
 
 /* ===== リサイズハンドル ===== */

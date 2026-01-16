@@ -20,3 +20,4 @@ export {
 } from '~/shared/models/whiteboard'
 
 export { getGeminiNanoClient } from '../ai/gemini-nano'
+export { getGeminiFlashClient } from '../ai/gemini-flash'

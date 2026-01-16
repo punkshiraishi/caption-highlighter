@@ -1,5 +1,6 @@
 import type { DictionaryState } from './dictionary'
 import { DEFAULT_DICTIONARY_STATE } from './dictionary'
+import { GEMINI_FLASH_FIXED_MODEL } from '~/shared/ai/gemini'
 
 export type MatchingMode = 'exact' | 'partial' | 'regex'
 
@@ -54,7 +55,7 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   whiteboardProvider: 'nano',
   allowSendCaptionsToCloud: false,
-  flashModel: 'gemini-2.0-flash',
+  flashModel: GEMINI_FLASH_FIXED_MODEL,
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
