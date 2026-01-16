@@ -5,6 +5,8 @@
 
 /* eslint-disable no-console */
 
+import { buildWhiteboardPrompt } from './gemini-whiteboard-prompt'
+
 interface BridgeRequest {
   type: 'GEMINI_NANO_REQUEST'
   action: 'checkAvailability' | 'createSession' | 'prompt' | 'destroy'
@@ -93,15 +95,6 @@ interface PromptPayload {
   previousSummary: string
 }
 
-// キャプションのクリーンアップ（途中経過を除去）
-function cleanCaptions(captions: string): string {
-  const lines = captions.split('\n')
-  // 短すぎる行（途中経過）を除去
-  const filtered = lines.filter(line => line.length > 15)
-  // 最後の3行のみ使用（重要な部分）
-  return filtered.slice(-3).join(' ')
-}
-
 async function executePrompt(payload: PromptPayload): Promise<string> {
   if (!session) {
     const created = await createSession()
@@ -110,32 +103,7 @@ async function executePrompt(payload: PromptPayload): Promise<string> {
     }
   }
 
-  const { captions, previousSummary } = payload
-
-  // キャプションから途中経過を除去
-  const cleanedCaptions = cleanCaptions(captions)
-
-  let prompt: string
-  if (previousSummary && previousSummary.trim()) {
-    prompt = `会議メモを更新。ネストした箇条書きで構造化。強調記号(**)は使わない。
-
-現在のメモ:
-${previousSummary}
-
-追加内容: ${cleanedCaptions}
-
-更新したメモ:
--`
-  }
-  else {
-    prompt = `会議発言をネストした箇条書きで構造化。強調記号(**)は使わない。
-
-発言: ${cleanedCaptions}
-
-構造化メモ:
-- 議題
-  -`
-  }
+  const prompt = buildWhiteboardPrompt(payload)
 
   console.log('[GeminiBridge] Executing prompt:')
   console.log('---PROMPT START---')
