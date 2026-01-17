@@ -3,6 +3,7 @@ import { ensureSettingsInitialized, loadUserSettings, saveUserSettings } from '~
 import type { UserSettings } from '~/shared/models/settings'
 import { loadSecrets } from '~/shared/storage/secrets'
 import { GEMINI_FLASH_FIXED_MODEL, GEMINI_IMAGE_MODEL } from '~/shared/ai/gemini'
+import { pickPreferredImageModel } from '~/shared/ai/gemini-models'
 
 if (import.meta.hot) {
   // @ts-expect-error background HMR
@@ -221,30 +222,9 @@ async function resolveImageModel(apiKey: string): Promise<string | null> {
   }
 
   const models = Array.isArray(data?.models) ? data.models : []
-  const candidates = models.filter((m: any) => Array.isArray(m?.supportedGenerationMethods))
-  const withGenerateContent = candidates.filter((m: any) => m.supportedGenerationMethods.includes('generateContent'))
-  const imageCandidates = withGenerateContent.filter((m: any) => /image/i.test(String(m?.name || '')))
-  const preferredOrder = [
-    'gemini-3-pro-image-preview',
-    'gemini-2.5-flash-image',
-    'gemini-2.0-flash-exp-image-generation',
-  ]
-
-  let picked: any = null
-  for (const name of preferredOrder) {
-    const found = imageCandidates.find((m: any) => String(m?.name || '').endsWith(name))
-    if (found) {
-      picked = found
-      break
-    }
-  }
-  if (!picked)
-    picked = imageCandidates[0]
-  if (!picked?.name)
+  const modelName = pickPreferredImageModel(models)
+  if (!modelName)
     return null
-
-  const name = String(picked.name || '')
-  const modelName = name.startsWith('models/') ? name.slice('models/'.length) : name
   cachedImageModel = { value: modelName, fetchedAt: Date.now() }
   return modelName
 }

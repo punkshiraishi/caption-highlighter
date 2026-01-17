@@ -488,7 +488,23 @@
   </div>
 
   <script type="module">
-    import { buildWhiteboardPrompt, buildWhiteboardImagePrompt } from '../src/shared/ai/whiteboard-prompts.ts';
+    let buildWhiteboardPrompt;
+    let buildWhiteboardImagePrompt;
+
+    try {
+      const modulePath = location.protocol === 'file:'
+        ? 'http://localhost:5173/src/shared/ai/whiteboard-prompts.ts'
+        : '../src/shared/ai/whiteboard-prompts.ts';
+      const prompts = await import(modulePath);
+      buildWhiteboardPrompt = prompts.buildWhiteboardPrompt;
+      buildWhiteboardImagePrompt = prompts.buildWhiteboardImagePrompt;
+    } catch (error) {
+      const message = location.protocol === 'file:'
+        ? 'モジュール読み込みに失敗しました。開発サーバーを起動して http://localhost:5173/dev/gemini-test.html から開いてください。'
+        : 'モジュール読み込みに失敗しました。';
+      document.body.insertAdjacentHTML('afterbegin', `<div style="padding:12px; background:#7f1d1d; color:#fff; border-radius:8px; margin-bottom:12px;">${message}</div>`);
+      throw error;
+    }
     // サンプル議事録データ
     const SAMPLES = {
       budget: `今回の議題は今年度の予算、そして来年度の予算についてです。
