@@ -487,7 +487,8 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { buildWhiteboardPrompt, buildWhiteboardImagePrompt } from '../src/shared/ai/whiteboard-prompts.ts';
     // サンプル議事録データ
     const SAMPLES = {
       budget: `今回の議題は今年度の予算、そして来年度の予算についてです。
@@ -763,26 +764,6 @@ Tryとして次回挑戦することです。
       }
     }
 
-    function buildImagePrompt(markdown) {
-      const safe = (markdown || '').trim() || '（議事録が空です）';
-      return `あなたは画像生成AIです。以下の議事録を「ホワイトボードにまとめた一枚画像」として生成してください。
-
-要件:
-- 出力は文字を含む「画像」(SVGではなくラスター画像)。
-- 白いホワイトボードの質感、薄い罫線や枠線、マーカーで書いたような手書き風。
-- ホワイトボードのフレームや周りの風景は含めない
-- タイトル「議事録」を上部中央に配置。
-- 議事録は短い箇条書きで、見出しと本文を整理して読みやすく。
-- 余白を取り、セクションごとに囲みや区切りを入れる。
-- 色は黒/濃いグレーを基調に、アクセント1〜2色まで。
-- 文字は読みやすいサイズで、詰め込みすぎない。
-
-議事録:
-${safe}
-
-出力: 1枚の画像。`;
-    }
-
     async function resolveImageModel(apiKey) {
       const ttl = 5 * 60 * 1000;
       if (cachedImageModel && (Date.now() - cachedImageModelAt) < ttl) {
@@ -843,7 +824,7 @@ ${safe}
 
       setImageStatus('画像生成中...');
       try {
-        const prompt = buildImagePrompt(markdown);
+        const prompt = buildWhiteboardImagePrompt({ markdown });
         if (imagePromptLogEl)
           imagePromptLogEl.textContent = prompt;
         const model = await resolveImageModel(apiKey);
@@ -960,27 +941,6 @@ ${safe}
       }
     }
 
-    function buildPrompt(captions, previous) {
-      if (previous && previous.trim()) {
-        return `会議メモを更新。ネストした箇条書きで構造化。強調記号(**)は使わない。
-
-現在のメモ:
-${previous}
-
-追加内容: ${captions}
-
-更新したメモ:
--`;
-      }
-      return `会議発言をネストした箇条書きで構造化。強調記号(**)は使わない。
-
-発言: ${captions}
-
-構造化メモ:
-- 議題
-  -`;
-    }
-
     // プロンプト実行（Nano）
     async function executePromptNano() {
       if (!session) {
@@ -1000,7 +960,7 @@ ${previous}
       runBtn.disabled = true;
       outputEl.textContent = '処理中...';
 
-      const prompt = buildPrompt(captions, previousSummary);
+      const prompt = buildWhiteboardPrompt({ captions, previousSummary });
       promptLogEl.textContent = prompt;
 
       try {
@@ -1037,7 +997,7 @@ ${previous}
       runBtn.disabled = true;
       outputEl.textContent = '処理中...';
 
-      const prompt = buildPrompt(captions, previousSummary);
+      const prompt = buildWhiteboardPrompt({ captions, previousSummary });
       promptLogEl.textContent = prompt;
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
