@@ -8,6 +8,7 @@ import type { DictionaryImportStats } from '~/shared/utils/csv'
 import { buildDictionaryFromCsv, parseCsv } from '~/shared/utils/csv'
 import { loadSecrets, saveSecrets } from '~/shared/storage/secrets'
 import { GEMINI_FLASH_FIXED_MODEL } from '~/shared/ai/gemini'
+import { DEBUG_CAPTION_STORAGE_KEY } from '~/shared/dev/debug-captions'
 
 const store = useSettingsStore()
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -21,6 +22,9 @@ const permGranted = ref<boolean | null>(null)
 const flashTestResult = ref<string | null>(null)
 const flashTestError = ref<string | null>(null)
 const savingKey = ref(false)
+const isDev = __DEV__
+const debugCaptionsEnabled = ref(false)
+const debugSaving = ref(false)
 
 const flashOrigins = ['https://generativelanguage.googleapis.com/*']
 const isFlash = computed(() => store.ai.whiteboardProvider === 'flash')
@@ -51,6 +55,7 @@ async function initialize() {
   const secrets = await loadSecrets()
   apiKey.value = secrets.geminiApiKey || ''
   await refreshPermission()
+  await loadDebugCaptions()
 }
 
 async function refreshPermission() {
@@ -93,6 +98,26 @@ async function testFlash() {
   }
   catch (error) {
     flashTestError.value = error instanceof Error ? error.message : String(error)
+  }
+}
+
+async function loadDebugCaptions() {
+  if (!isDev)
+    return
+  const stored = await browser.storage.local.get(DEBUG_CAPTION_STORAGE_KEY)
+  debugCaptionsEnabled.value = stored[DEBUG_CAPTION_STORAGE_KEY] === true
+}
+
+async function setDebugCaptions(enabled: boolean) {
+  if (!isDev)
+    return
+  debugSaving.value = true
+  try {
+    await browser.storage.local.set({ [DEBUG_CAPTION_STORAGE_KEY]: enabled })
+    debugCaptionsEnabled.value = enabled
+  }
+  finally {
+    debugSaving.value = false
   }
 }
 
@@ -319,6 +344,33 @@ async function handleReset() {
           </div>
           <pre v-if="flashTestResult" class="ai-preview">{{ flashTestResult }}</pre>
         </div>
+      </div>
+    </section>
+
+    <section v-if="isDev" class="panel">
+      <header class="panel__header">
+        <div>
+          <h2>デバッグ</h2>
+          <p class="panel__subtitle">
+            開発用の補助機能です。本番環境では表示されません。
+          </p>
+        </div>
+      </header>
+
+      <div class="ai-grid">
+        <label class="ai-field ai-field--wide">
+          <span>字幕の疑似注入</span>
+          <label class="ai-check">
+            <input
+              type="checkbox"
+              :checked="debugCaptionsEnabled"
+              :disabled="debugSaving"
+              @change="setDebugCaptions(($event.target as HTMLInputElement).checked)"
+            >
+            Meet の字幕DOMに疑似字幕を注入する（debug）
+          </label>
+          <span class="ai-help">Meet ページを開いた状態で ON にすると、1秒以内に反映されます。</span>
+        </label>
       </div>
     </section>
   </main>

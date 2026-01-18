@@ -2,6 +2,7 @@ import './styles.css'
 import './whiteboard/whiteboard.css'
 import 'uno.css'
 import { CaptionObserver, DEFAULT_CAPTION_SELECTORS } from './dom/caption-observer'
+import { setupDebugCaptionController } from './dev/debug-captions'
 import { CaptionHighlighter, applyThemeVariables } from './highlight/highlighter'
 import { TooltipController } from './highlight/tooltip'
 import { WhiteboardPanel, WhiteboardProcessor, getDefaultWhiteboardSettings, getGeminiNanoClient } from './whiteboard'
@@ -41,6 +42,13 @@ observer.onCaption((element) => {
 })
 
 observer.start()
+
+setupDebugCaptionController({
+  onCaption: (element) => {
+    highlighter.process(element)
+    whiteboardProcessor.addCaption(element)
+  },
+})
 
 async function bootstrap() {
   try {
