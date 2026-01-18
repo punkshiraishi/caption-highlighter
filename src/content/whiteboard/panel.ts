@@ -4,6 +4,7 @@
  */
 
 import { getGeminiFlashClient } from '../ai/gemini-flash'
+import { injectDebugCaptionsOnce } from '../dev/debug-captions'
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 import type { WhiteboardProvider } from '~/shared/models/settings'
 
@@ -29,8 +30,11 @@ export class WhiteboardPanel {
   private statusEl: HTMLElement | null = null
   private footerEl: HTMLElement | null = null
   private footerInfoEl: HTMLElement | null = null
+  private debugRowEl: HTMLElement | null = null
+  private debugButtonEl: HTMLButtonElement | null = null
   private copyBtn: HTMLElement | null = null
   private imageBtn: HTMLElement | null = null
+  private imageRunBtn: HTMLElement | null = null
   private markdownTabBtn: HTMLElement | null = null
   private imageTabBtn: HTMLElement | null = null
   private downloadBtn: HTMLElement | null = null
@@ -116,6 +120,7 @@ export class WhiteboardPanel {
           <div class="whiteboard-panel__image-toolbar">
             <span class="whiteboard-panel__image-hint">画像はボタン押下で生成されます</span>
             <div class="whiteboard-panel__image-actions">
+              <button class="whiteboard-panel__btn whiteboard-panel__btn--image-run" title="画像を生成">生成</button>
               <button class="whiteboard-panel__btn whiteboard-panel__btn--download" title="画像を保存">DL</button>
             </div>
           </div>
@@ -127,8 +132,13 @@ export class WhiteboardPanel {
         </div>
       </div>
       <div class="whiteboard-panel__footer">
-        <span class="whiteboard-panel__footer-info">Gemini Nano で構造化</span>
-        <span class="whiteboard-panel__footer-count"></span>
+        <div class="whiteboard-panel__footer-main">
+          <span class="whiteboard-panel__footer-info">Gemini Nano で構造化</span>
+          <span class="whiteboard-panel__footer-count"></span>
+        </div>
+        <div class="whiteboard-panel__debug">
+          <button class="whiteboard-panel__debug-btn" type="button">デバッグ字幕を挿入</button>
+        </div>
       </div>
       <div class="whiteboard-panel__resize"></div>
     `
@@ -142,10 +152,13 @@ export class WhiteboardPanel {
     this.statusEl = this.panel.querySelector('.whiteboard-panel__status')
     this.footerEl = this.panel.querySelector('.whiteboard-panel__footer-count')
     this.footerInfoEl = this.panel.querySelector('.whiteboard-panel__footer-info')
+    this.debugRowEl = this.panel.querySelector('.whiteboard-panel__debug')
+    this.debugButtonEl = this.panel.querySelector('.whiteboard-panel__debug-btn')
     this.copyBtn = this.panel.querySelector('.whiteboard-panel__btn--copy')
     this.imageBtn = this.panel.querySelector('.whiteboard-panel__btn--image')
     this.markdownTabBtn = this.panel.querySelector('.whiteboard-panel__tab--markdown')
     this.imageTabBtn = this.panel.querySelector('.whiteboard-panel__tab--image')
+    this.imageRunBtn = this.panel.querySelector('.whiteboard-panel__btn--image-run')
     this.downloadBtn = this.panel.querySelector('.whiteboard-panel__btn--download')
     this.imageEl = this.panel.querySelector('.whiteboard-panel__image')
     this.imageStatusEl = this.panel.querySelector('.whiteboard-panel__image-status')
@@ -155,6 +168,8 @@ export class WhiteboardPanel {
     if (this.contentEl) {
       this.contentEl.textContent = '字幕を待機中...'
     }
+
+    this.initializeDebugToggle()
 
     // 入場アニメーション後にクラスを削除
     setTimeout(() => {
@@ -180,6 +195,7 @@ export class WhiteboardPanel {
 
     // 画像出力ボタン（生成してタブを切り替え）
     this.imageBtn?.addEventListener('click', () => this.generateImage())
+    this.imageRunBtn?.addEventListener('click', () => this.generateImage())
 
     // 最小化ボタン
     const minimizeBtn = this.panel.querySelector('.whiteboard-panel__btn--minimize')
@@ -198,9 +214,26 @@ export class WhiteboardPanel {
     this.imageTabBtn?.addEventListener('click', () => this.switchTab('image'))
     this.downloadBtn?.addEventListener('click', () => this.downloadImage())
 
+    this.debugButtonEl?.addEventListener('click', () => this.handleDebugInsert())
+
     // グローバルイベント
     document.addEventListener('mousemove', e => this.onMouseMove(e))
     document.addEventListener('mouseup', () => this.onMouseUp())
+  }
+
+  private initializeDebugToggle(): void {
+    if (!this.debugRowEl || !this.debugButtonEl)
+      return
+
+    if (!__DEV__) {
+      this.debugRowEl.style.display = 'none'
+    }
+  }
+
+  private handleDebugInsert(): void {
+    if (!__DEV__)
+      return
+    injectDebugCaptionsOnce()
   }
 
   /**
@@ -584,8 +617,11 @@ export class WhiteboardPanel {
     this.statusEl = null
     this.footerEl = null
     this.footerInfoEl = null
+    this.debugRowEl = null
+    this.debugButtonEl = null
     this.copyBtn = null
     this.imageBtn = null
+    this.imageRunBtn = null
     this.markdownTabBtn = null
     this.imageTabBtn = null
     this.downloadBtn = null

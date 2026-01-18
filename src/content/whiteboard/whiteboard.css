@@ -239,6 +239,12 @@
   padding: 0 8px;
 }
 
+.whiteboard-panel__btn--image-run {
+  font-size: 11px;
+  width: auto;
+  padding: 0 8px;
+}
+
 .whiteboard-panel__image-canvas-wrap {
   position: relative;
   padding: 12px;
@@ -455,9 +461,40 @@
   font-size: 10px;
   color: #666;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.whiteboard-panel__footer-main {
+  display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
+
+.whiteboard-panel__debug {
+  display: flex;
+  align-items: center;
+}
+
+.whiteboard-panel__debug-btn {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.5);
+  color: #cbd5f5;
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.whiteboard-panel__debug-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #e0e7ff;
+}
+
 
 .whiteboard-panel--minimized .whiteboard-panel__footer {
   display: none;
