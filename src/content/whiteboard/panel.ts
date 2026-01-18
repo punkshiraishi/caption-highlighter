@@ -4,7 +4,7 @@
  */
 
 import { getGeminiFlashClient } from '../ai/gemini-flash'
-import { injectDebugCaptionsOnce } from '../dev/debug-captions'
+import { injectSampleCaptions } from '../dev/sample-captions'
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 import type { WhiteboardProvider } from '~/shared/models/settings'
 
@@ -137,7 +137,7 @@ export class WhiteboardPanel {
           <span class="whiteboard-panel__footer-count"></span>
         </div>
         <div class="whiteboard-panel__debug">
-          <button class="whiteboard-panel__debug-btn" type="button">デバッグ字幕を挿入</button>
+          <button class="whiteboard-panel__debug-btn" type="button">サンプル字幕を注入</button>
         </div>
       </div>
       <div class="whiteboard-panel__resize"></div>
@@ -214,7 +214,7 @@ export class WhiteboardPanel {
     this.imageTabBtn?.addEventListener('click', () => this.switchTab('image'))
     this.downloadBtn?.addEventListener('click', () => this.downloadImage())
 
-    this.debugButtonEl?.addEventListener('click', () => this.handleDebugInsert())
+    this.debugButtonEl?.addEventListener('click', () => this.handleSampleInject())
 
     // グローバルイベント
     document.addEventListener('mousemove', e => this.onMouseMove(e))
@@ -230,10 +230,10 @@ export class WhiteboardPanel {
     }
   }
 
-  private handleDebugInsert(): void {
+  private handleSampleInject(): void {
     if (!__DEV__)
       return
-    injectDebugCaptionsOnce()
+    injectSampleCaptions()
   }
 
   /**
