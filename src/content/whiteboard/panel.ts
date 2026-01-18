@@ -38,7 +38,6 @@ export class WhiteboardPanel {
   private imageStatusEl: HTMLElement | null = null
   private imageEmptyEl: HTMLElement | null = null
   private markdownContent = ''
-  private activeTab: 'markdown' | 'image' = 'markdown'
   private imageDataUrl = ''
   private imageLoading = false
   private settings: WhiteboardSettings
@@ -488,7 +487,6 @@ export class WhiteboardPanel {
    * タブを切り替え
    */
   private switchTab(tab: 'markdown' | 'image'): void {
-    this.activeTab = tab
     const isMarkdown = tab === 'markdown'
     this.markdownViewEl?.classList.toggle('is-active', isMarkdown)
     this.imageViewEl?.classList.toggle('is-active', !isMarkdown)

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import { sharedConfig } from './vite.config.mts'
+import { sharedConfig } from './vite.config.mjs'
 import { port, r } from './scripts/utils'
 
 // Dev-only Vue app for testing prompts / image generation.
