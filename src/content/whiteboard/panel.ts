@@ -476,7 +476,7 @@ export class WhiteboardPanel {
     if (!this.footerInfoEl)
       return
     this.footerInfoEl.textContent = provider === 'flash'
-      ? '構造化（beta）'
+      ? ''
       : 'Gemini Nano で構造化'
   }
 
