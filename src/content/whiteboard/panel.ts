@@ -5,7 +5,7 @@
 
 import { getGeminiFlashClient } from '../ai/gemini-flash'
 import { injectSampleCaptions } from '../dev/sample-captions'
-import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_IMAGE, ICON_MINIMIZE, ICON_WARNING } from './icons'
+import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_MINIMIZE, ICON_WARNING } from './icons'
 import { renderMarkdownToHtml } from './markdown/render'
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 import type { WhiteboardProvider } from '~/shared/models/settings'
@@ -35,7 +35,6 @@ export class WhiteboardPanel {
   private debugRowEl: HTMLElement | null = null
   private debugButtonEl: HTMLButtonElement | null = null
   private copyBtn: HTMLElement | null = null
-  private imageBtn: HTMLElement | null = null
   private imageRunBtn: HTMLElement | null = null
   private markdownTabBtn: HTMLElement | null = null
   private imageTabBtn: HTMLElement | null = null
@@ -104,7 +103,6 @@ export class WhiteboardPanel {
           <span class="whiteboard-panel__status"></span>
         </div>
         <div class="whiteboard-panel__controls">
-          <button class="whiteboard-panel__btn whiteboard-panel__btn--image" title="画像出力"><span class="whiteboard-icon" aria-hidden="true">${ICON_IMAGE}</span></button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー"><span class="whiteboard-icon" aria-hidden="true">${ICON_COPY}</span></button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--minimize" title="最小化"><span class="whiteboard-icon" aria-hidden="true">${ICON_MINIMIZE}</span></button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--close" title="閉じる"><span class="whiteboard-icon" aria-hidden="true">${ICON_CLOSE}</span></button>
@@ -157,7 +155,6 @@ export class WhiteboardPanel {
     this.debugRowEl = this.panel.querySelector('.whiteboard-panel__debug')
     this.debugButtonEl = this.panel.querySelector('.whiteboard-panel__debug-btn')
     this.copyBtn = this.panel.querySelector('.whiteboard-panel__btn--copy')
-    this.imageBtn = this.panel.querySelector('.whiteboard-panel__btn--image')
     this.markdownTabBtn = this.panel.querySelector('.whiteboard-panel__tab--markdown')
     this.imageTabBtn = this.panel.querySelector('.whiteboard-panel__tab--image')
     this.imageRunBtn = this.panel.querySelector('.whiteboard-panel__btn--image-run')
@@ -195,8 +192,7 @@ export class WhiteboardPanel {
     // コピーボタン
     this.copyBtn?.addEventListener('click', () => this.copyToClipboard())
 
-    // 画像出力ボタン（生成してタブを切り替え）
-    this.imageBtn?.addEventListener('click', () => this.generateImage())
+    // 画像生成ボタン
     this.imageRunBtn?.addEventListener('click', () => this.generateImage())
 
     // 最小化ボタン
@@ -625,7 +621,6 @@ export class WhiteboardPanel {
     this.debugRowEl = null
     this.debugButtonEl = null
     this.copyBtn = null
-    this.imageBtn = null
     this.imageRunBtn = null
     this.markdownTabBtn = null
     this.imageTabBtn = null
