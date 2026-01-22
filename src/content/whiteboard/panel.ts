@@ -5,6 +5,7 @@
 
 import { getGeminiFlashClient } from '../ai/gemini-flash'
 import { injectSampleCaptions } from '../dev/sample-captions'
+import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_IMAGE, ICON_MINIMIZE, ICON_WARNING } from './icons'
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 import type { WhiteboardProvider } from '~/shared/models/settings'
 
@@ -75,7 +76,7 @@ export class WhiteboardPanel {
     this.toggle = document.createElement('button')
     this.toggle.id = TOGGLE_ID
     this.toggle.className = 'whiteboard-toggle'
-    this.toggle.innerHTML = '📋'
+    this.toggle.innerHTML = `<span class="whiteboard-icon" aria-hidden="true">${ICON_CLIPBOARD}</span>`
     this.toggle.title = 'ホワイトボードを表示/非表示'
     this.toggle.addEventListener('click', () => this.toggleVisibility())
     document.body.appendChild(this.toggle)
@@ -97,15 +98,15 @@ export class WhiteboardPanel {
     this.panel.innerHTML = `
       <div class="whiteboard-panel__header">
         <div class="whiteboard-panel__title">
-          <span class="whiteboard-panel__title-icon">📋</span>
+          <span class="whiteboard-panel__title-icon"><span class="whiteboard-icon" aria-hidden="true">${ICON_CLIPBOARD}</span></span>
           <span>ホワイトボード</span>
           <span class="whiteboard-panel__status"></span>
         </div>
         <div class="whiteboard-panel__controls">
-          <button class="whiteboard-panel__btn whiteboard-panel__btn--image" title="画像出力">🖼️</button>
-          <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー">📄</button>
-          <button class="whiteboard-panel__btn whiteboard-panel__btn--minimize" title="最小化">─</button>
-          <button class="whiteboard-panel__btn whiteboard-panel__btn--close" title="閉じる">✕</button>
+          <button class="whiteboard-panel__btn whiteboard-panel__btn--image" title="画像出力"><span class="whiteboard-icon" aria-hidden="true">${ICON_IMAGE}</span></button>
+          <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー"><span class="whiteboard-icon" aria-hidden="true">${ICON_COPY}</span></button>
+          <button class="whiteboard-panel__btn whiteboard-panel__btn--minimize" title="最小化"><span class="whiteboard-icon" aria-hidden="true">${ICON_MINIMIZE}</span></button>
+          <button class="whiteboard-panel__btn whiteboard-panel__btn--close" title="閉じる"><span class="whiteboard-icon" aria-hidden="true">${ICON_CLOSE}</span></button>
         </div>
       </div>
       <div class="whiteboard-panel__tabs">
@@ -435,13 +436,13 @@ export class WhiteboardPanel {
 
       // コピー成功のフィードバック
       if (this.copyBtn) {
-        const originalText = this.copyBtn.textContent
-        this.copyBtn.textContent = '✓'
+        const originalHtml = this.copyBtn.innerHTML
+        this.copyBtn.innerHTML = `<span class="whiteboard-icon" aria-hidden="true">${ICON_CHECK}</span>`
         this.copyBtn.classList.add('whiteboard-panel__btn--copied')
 
         setTimeout(() => {
           if (this.copyBtn) {
-            this.copyBtn.textContent = originalText
+            this.copyBtn.innerHTML = originalHtml
             this.copyBtn.classList.remove('whiteboard-panel__btn--copied')
           }
         }, 1500)
@@ -461,7 +462,7 @@ export class WhiteboardPanel {
     if (this.contentEl && availability !== 'available') {
       this.contentEl.innerHTML = `
         <div class="whiteboard-panel__unavailable">
-          <div class="whiteboard-panel__unavailable-icon">⚠️</div>
+          <div class="whiteboard-panel__unavailable-icon"><span class="whiteboard-icon" role="img" aria-label="警告">${ICON_WARNING}</span></div>
           <div class="whiteboard-panel__unavailable-title">Gemini Nano が利用できません</div>
           <div class="whiteboard-panel__unavailable-text">
             ${this.getAvailabilityMessage(availability)}
@@ -484,7 +485,7 @@ export class WhiteboardPanel {
       return
     this.contentEl.innerHTML = `
       <div class="whiteboard-panel__unavailable">
-        <div class="whiteboard-panel__unavailable-icon">⚠️</div>
+        <div class="whiteboard-panel__unavailable-icon"><span class="whiteboard-icon" role="img" aria-label="警告">${ICON_WARNING}</span></div>
         <div class="whiteboard-panel__unavailable-title">Gemini Flash が利用できません</div>
         <div class="whiteboard-panel__unavailable-text">
           ${message}

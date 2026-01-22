@@ -3,6 +3,7 @@
  * ホワイトボードアイテムを階層的に表示
  */
 
+import { ICON_CLIPBOARD } from '../icons'
 import type { WhiteboardItem } from '~/shared/models/whiteboard'
 
 const CLASS_PREFIX = 'whiteboard-list'
@@ -36,7 +37,7 @@ export class NestedListRenderer {
     const empty = document.createElement('div')
     empty.className = `${CLASS_PREFIX}__empty`
     empty.innerHTML = `
-      <div class="${CLASS_PREFIX}__empty-icon">📋</div>
+      <div class="${CLASS_PREFIX}__empty-icon"><span class="whiteboard-icon" aria-hidden="true">${ICON_CLIPBOARD}</span></div>
       <div class="${CLASS_PREFIX}__empty-text">会議のトピックがここに表示されます</div>
       <div class="${CLASS_PREFIX}__empty-hint">キャプションを有効にして会話を始めてください</div>
     `

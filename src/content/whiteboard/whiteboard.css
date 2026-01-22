@@ -2,6 +2,22 @@
  * ホワイトボードパネルのスタイル
  */
 
+/* ===== アイコン（SVG / currentColor） ===== */
+.whiteboard-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.whiteboard-icon > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
 /* ===== パネル全体 ===== */
 .whiteboard-panel {
   position: fixed;
@@ -62,6 +78,9 @@
 
 .whiteboard-panel__title-icon {
   font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .whiteboard-panel__status {
