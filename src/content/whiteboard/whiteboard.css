@@ -15,7 +15,11 @@
   height: 1em;
   display: block;
   fill: currentColor;
-  stroke: currentColor;
+}
+
+/* Many Material Symbols are fill-based; adding stroke makes them look too bold. */
+.whiteboard-icon > svg * {
+  stroke: none;
 }
 
 /* ===== パネル全体 ===== */
