@@ -60,6 +60,10 @@ export class CaptionObserver {
     this.rootObserver.observe(document.body, {
       childList: true,
       subtree: true,
+      // Meet 側が aria-hidden を動的に切り替えることがあり、
+      // childList だけだと字幕コンテナの再検出が走らず停止したように見えるケースがある。
+      attributes: true,
+      attributeFilter: ['aria-hidden', 'aria-live', 'aria-label'],
     })
   }
 
@@ -100,11 +104,14 @@ export class CaptionObserver {
     if (!element.isConnected)
       return false
 
-    if (element.getAttribute('aria-hidden') === 'true')
-      return false
-
     if (element.querySelector('.ygicle, .VbkSUe, [data-language-code]'))
       return true
+
+    // aria-hidden は「候補として弱い」ことを示すだけで、
+    // Meet の実装都合で一時的に true になる場合があるため、
+    // 字幕らしいマーカーが無い場合のみ除外する。
+    if (element.getAttribute('aria-hidden') === 'true')
+      return false
 
     const rect = element.getBoundingClientRect()
     if (rect.width === 0 || rect.height === 0)
