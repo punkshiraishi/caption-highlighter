@@ -110,7 +110,7 @@ export class WhiteboardPanel {
         </div>
       </div>
       <div class="whiteboard-panel__tabs">
-        <button class="whiteboard-panel__tab whiteboard-panel__tab--markdown is-active" data-tab="markdown">メモ</button>
+        <button class="whiteboard-panel__tab whiteboard-panel__tab--markdown is-active" data-tab="markdown">テキスト</button>
         <button class="whiteboard-panel__tab whiteboard-panel__tab--image" data-tab="image">画像</button>
       </div>
       <div class="whiteboard-panel__content">
