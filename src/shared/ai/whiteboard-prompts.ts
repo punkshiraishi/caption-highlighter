@@ -26,24 +26,39 @@ export function buildWhiteboardPrompt(payload: GeminiWhiteboardPromptPayload): s
   const cleanedCaptions = cleanCaptionsForWhiteboard(captions)
 
   if (previousSummary && previousSummary.trim()) {
-    return `会議メモを更新。ネストした箇条書きで構造化。強調記号(**)は使わない。
+    return `会議の議事録を更新し、見出しを含むMarkdownで構造化して出力してください。
 
-現在のメモ:
+ルール:
+- 出力はMarkdownのみ（コードブロック・HTML・前置き/後置きは書かない）
+- 見出しは "##" を使う（例: "## 決定事項"）
+- 箇条書きは "-" を使う
+- 必要なら短いサブ見出し（"###"）は可
+- 重要語を太字にしない（**は使わない）
+
+現在の議事録（Markdown）:
 ${previousSummary}
 
 追加内容: ${cleanedCaptions}
 
-更新したメモ:
+更新した議事録（Markdown）:
+## 議題
 -`
   }
 
-  return `会議発言をネストした箇条書きで構造化。強調記号(**)は使わない。
+  return `会議発言を議事録として、見出しを含むMarkdownで構造化して出力してください。
+
+ルール:
+- 出力はMarkdownのみ（コードブロック・HTML・前置き/後置きは書かない）
+- 見出しは "##" を使う（例: "## 決定事項"）
+- 箇条書きは "-" を使う
+- 必要なら短いサブ見出し（"###"）は可
+- 重要語を太字にしない（**は使わない）
 
 発言: ${cleanedCaptions}
 
-構造化メモ:
-- 議題
-  -`
+議事録（Markdown）:
+## 議題
+-`
 }
 
 export function buildWhiteboardImagePrompt(payload: GeminiWhiteboardImagePromptPayload): string {

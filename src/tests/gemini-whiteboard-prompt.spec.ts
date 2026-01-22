@@ -24,21 +24,21 @@ describe('gemini whiteboard prompt', () => {
       previousSummary: '',
     })
 
-    expect(prompt).toContain('会議発言をネストした箇条書きで構造化。強調記号(**)は使わない。')
+    expect(prompt).toContain('会議発言を議事録として、見出しを含むMarkdownで構造化して出力してください。')
     expect(prompt).toContain('発言: これは十分に長いテスト行です12345 これも十分に長いテスト行です12345 また十分に長いテスト行です12345')
-    expect(prompt.endsWith('- 議題\n  -')).toBe(true)
+    expect(prompt.endsWith('## 議題\n-')).toBe(true)
   })
 
   it('buildWhiteboardPrompt (update) includes previous summary and ends with a bullet seed', () => {
-    const prev = '- 議題\n  - 予算\n- 担当\n  - 人事部'
+    const prev = '## 議題\n- 予算\n## 担当\n- 人事部'
     const prompt = buildWhiteboardPrompt({
       captions: '短い\nこれは十分に長いテスト行です12345\nこれも十分に長いテスト行です12345\nまた十分に長いテスト行です12345',
       previousSummary: prev,
     })
 
-    expect(prompt).toContain('会議メモを更新。ネストした箇条書きで構造化。強調記号(**)は使わない。')
-    expect(prompt).toContain(`現在のメモ:\n${prev}`)
+    expect(prompt).toContain('会議の議事録を更新し、見出しを含むMarkdownで構造化して出力してください。')
+    expect(prompt).toContain(`現在の議事録（Markdown）:\n${prev}`)
     expect(prompt).toContain('追加内容: これは十分に長いテスト行です12345 これも十分に長いテスト行です12345 また十分に長いテスト行です12345')
-    expect(prompt.endsWith('\n-')).toBe(true)
+    expect(prompt.endsWith('## 議題\n-')).toBe(true)
   })
 })

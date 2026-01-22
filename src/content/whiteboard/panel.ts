@@ -6,6 +6,7 @@
 import { getGeminiFlashClient } from '../ai/gemini-flash'
 import { injectSampleCaptions } from '../dev/sample-captions'
 import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_IMAGE, ICON_MINIMIZE, ICON_WARNING } from './icons'
+import { renderMarkdownToHtml } from './markdown/render'
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 import type { WhiteboardProvider } from '~/shared/models/settings'
 
@@ -115,7 +116,7 @@ export class WhiteboardPanel {
       </div>
       <div class="whiteboard-panel__content">
         <div class="whiteboard-panel__view whiteboard-panel__view--markdown is-active">
-          <pre class="whiteboard-panel__markdown"></pre>
+          <div class="whiteboard-panel__markdown"></div>
         </div>
         <div class="whiteboard-panel__view whiteboard-panel__view--image">
           <div class="whiteboard-panel__image-toolbar">
@@ -409,7 +410,7 @@ export class WhiteboardPanel {
     if (this.contentEl) {
       if (state.markdownContent) {
         this.markdownContent = state.markdownContent
-        this.contentEl.textContent = state.markdownContent
+        this.contentEl.innerHTML = renderMarkdownToHtml(state.markdownContent)
       }
       else if (!state.isProcessing) {
         this.contentEl.textContent = '字幕を待機中...'
@@ -418,8 +419,11 @@ export class WhiteboardPanel {
 
     // 行数を表示
     if (this.footerEl && state.markdownContent) {
-      const lineCount = state.markdownContent.split('\n').filter(line => line.trim().startsWith('-')).length
-      this.footerEl.textContent = `${lineCount} 項目`
+      const lines = state.markdownContent.split('\n').map(l => l.trim()).filter(Boolean)
+      const listCount = lines.filter(l => /^(?:[-*]\s+|\d+\.\s+)/.test(l)).length
+      const headingCount = lines.filter(l => /^#{1,6}\s+/.test(l)).length
+      const count = listCount || headingCount || lines.length
+      this.footerEl.textContent = `${count} 項目`
     }
   }
 

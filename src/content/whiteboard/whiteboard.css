@@ -198,14 +198,80 @@
 .whiteboard-panel__markdown {
   margin: 0;
   padding: 12px 14px;
-  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 12px;
   line-height: 1.7;
   color: #e0e0e0;
-  white-space: pre-wrap;
+  white-space: normal;
   word-break: break-word;
   background: transparent;
   border: none;
+}
+
+.whiteboard-panel__markdown h2,
+.whiteboard-panel__markdown h3,
+.whiteboard-panel__markdown h4 {
+  margin: 10px 0 6px;
+  line-height: 1.35;
+  color: #e0e7ff;
+}
+
+.whiteboard-panel__markdown h2 {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.whiteboard-panel__markdown h3 {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.whiteboard-panel__markdown h4 {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.whiteboard-panel__markdown p {
+  margin: 6px 0;
+  color: #e5e7eb;
+}
+
+.whiteboard-panel__markdown ul,
+.whiteboard-panel__markdown ol {
+  margin: 6px 0 10px;
+  padding-left: 18px;
+  color: #e5e7eb;
+}
+
+.whiteboard-panel__markdown li {
+  margin: 3px 0;
+}
+
+.whiteboard-panel__markdown code {
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e0e7ff;
+}
+
+.whiteboard-panel__markdown pre {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  overflow: auto;
+}
+
+.whiteboard-panel__markdown pre code {
+  display: block;
+  padding: 0;
+  background: transparent;
+  color: #e5e7eb;
+  white-space: pre;
 }
 
 .whiteboard-panel--minimized .whiteboard-panel__content {
