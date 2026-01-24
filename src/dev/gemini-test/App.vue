@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { buildWhiteboardImagePrompt, buildWhiteboardPrompt } from '~/shared/ai/whiteboard-prompts'
 import { pickPreferredImageModel } from '~/shared/ai/gemini-models'
+import { SAMPLE_CAPTIONS } from '~/content/dev/sample-captions'
 
 type Provider = 'nano' | 'flash'
 
@@ -16,6 +17,7 @@ const flashModel = ref('gemini-flash-lite-latest')
 const inputText = ref('')
 
 const sampleOptions = [
+  { key: 'contentScript', label: '📋 Content Script サンプル' },
   { key: 'budget', label: '予算会議' },
   { key: 'project', label: 'プロジェクト報告' },
   { key: 'hiring', label: '採用会議' },
@@ -150,6 +152,7 @@ Tryとして次回挑戦することです。
 で、採用費用の話なんですけど、えーと、人材紹介会社経由だと、まあ、年収の35パー、35パーセントぐらい、えー、かかるんで。
 えっと、仮に3名採用すると、えー、1500万、1500万円ぐらい、あの、コストがかかる計算になります。
 なので、あのー、ダイレクト、ダイレクトリクルーティングを、もっと活用して、えー、コスト削減、したいなって思ってます。`,
+  contentScript: SAMPLE_CAPTIONS.join('\n'),
 }
 
 function applySample(key: string): void {

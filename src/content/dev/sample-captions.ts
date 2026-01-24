@@ -1,6 +1,6 @@
 import { DEFAULT_CAPTION_SELECTORS } from '../dom/caption-observer'
 
-const SAMPLE_CAPTIONS = [
+export const SAMPLE_CAPTIONS = [
   // ===== 開始・アジェンダ紹介 =====
   '皆さんお疲れ様です。本日の定例ミーティングを始めます。',
   '今日のアジェンダは大きく4つあります。1つ目がQ3の売上実績と分析、2つ目が新機能リリースの進捗、3つ目がカスタマーサポート体制の見直し、4つ目がセキュリティ対策の強化です。',
