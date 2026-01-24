@@ -217,9 +217,9 @@
 
 /* h2: 大見出し - 左ボーダー太＋明るいアクセントカラー */
 .whiteboard-panel__markdown h2 {
-  margin: 16px 0 8px;
+  margin: 18px 0 10px;
   padding-left: 10px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   border-left: 4px solid #818cf8;
 }
@@ -230,7 +230,7 @@
 
 /* h3: 中見出し - 左ボーダー細＋少し薄い色 */
 .whiteboard-panel__markdown h3 {
-  margin: 12px 0 6px;
+  margin: 14px 0 6px;
   padding-left: 8px;
   font-size: 13px;
   font-weight: 600;
@@ -240,7 +240,7 @@
 /* h4: 小見出し - ボーダーなし・少し薄い */
 .whiteboard-panel__markdown h4 {
   margin: 10px 0 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #c7d2fe;
 }
