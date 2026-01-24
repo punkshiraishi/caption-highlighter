@@ -211,26 +211,38 @@
 .whiteboard-panel__markdown h2,
 .whiteboard-panel__markdown h3,
 .whiteboard-panel__markdown h4 {
-  margin: 10px 0 6px;
   line-height: 1.35;
   color: #e0e7ff;
 }
 
+/* h2: 大見出し - 左ボーダー太＋明るいアクセントカラー */
 .whiteboard-panel__markdown h2 {
-  font-size: 13px;
+  margin: 16px 0 8px;
+  padding-left: 10px;
+  font-size: 14px;
   font-weight: 700;
+  border-left: 4px solid #818cf8;
 }
 
+.whiteboard-panel__markdown h2:first-child {
+  margin-top: 0;
+}
+
+/* h3: 中見出し - 左ボーダー細＋少し薄い色 */
 .whiteboard-panel__markdown h3 {
-  font-size: 12px;
-  font-weight: 700;
-  opacity: 0.95;
+  margin: 12px 0 6px;
+  padding-left: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-left: 3px solid #a5b4fc;
 }
 
+/* h4: 小見出し - ボーダーなし・少し薄い */
 .whiteboard-panel__markdown h4 {
+  margin: 10px 0 4px;
   font-size: 12px;
   font-weight: 600;
-  opacity: 0.9;
+  color: #c7d2fe;
 }
 
 .whiteboard-panel__markdown p {
