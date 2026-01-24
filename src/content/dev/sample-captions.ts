@@ -99,16 +99,28 @@ const USER_NAME_CONTAINER_CLASS = 'KcIKyf jxFHg'
 const USER_NAME_CLASS = 'NWpY1d'
 const CAPTION_TEXT_CLASS = 'ygicle VbkSUe'
 
+/** 注入間隔（ミリ秒） */
+const INJECT_INTERVAL_MS = 400
+
+/**
+ * サンプル字幕を少しずつ注入（リアルタイム字幕をシミュレート）
+ */
 export function injectSampleCaptions(): void {
   const container = findCaptionContainer()
   if (!container)
     return
 
-  const fragment = document.createDocumentFragment()
-  SAMPLE_CAPTIONS.forEach((caption) => {
-    fragment.appendChild(createCaptionDom(SAMPLE_USER_NAME, SAMPLE_USER_IMAGE_URL, caption))
-  })
-  container.appendChild(fragment)
+  let index = 0
+  const intervalId = setInterval(() => {
+    if (index >= SAMPLE_CAPTIONS.length) {
+      clearInterval(intervalId)
+      return
+    }
+
+    const caption = SAMPLE_CAPTIONS[index]
+    container.appendChild(createCaptionDom(SAMPLE_USER_NAME, SAMPLE_USER_IMAGE_URL, caption))
+    index++
+  }, INJECT_INTERVAL_MS)
 }
 
 function findCaptionContainer(): HTMLElement | null {
