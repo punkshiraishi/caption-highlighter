@@ -237,12 +237,14 @@
   border-left: 3px solid #a5b4fc;
 }
 
-/* h4: 小見出し - ボーダーなし・少し薄い */
+/* h4: 小見出し - 左ボーダー細＋薄い色 */
 .whiteboard-panel__markdown h4 {
-  margin: 10px 0 4px;
+  margin: 8px 0 4px;
+  padding-left: 6px;
   font-size: 11px;
   font-weight: 600;
   color: #c7d2fe;
+  border-left: 2px solid #c7d2fe;
 }
 
 .whiteboard-panel__markdown p {

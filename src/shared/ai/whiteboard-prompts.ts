@@ -26,14 +26,13 @@ export function buildWhiteboardPrompt(payload: GeminiWhiteboardPromptPayload): s
   const cleanedCaptions = cleanCaptionsForWhiteboard(captions)
 
   if (previousSummary && previousSummary.trim()) {
-    return `会議の議事録を更新し、見出しを含むMarkdownで構造化して出力してください。
+    return `会議の議事録を更新し、階層的な見出しを含むMarkdownで構造化して出力してください。
 
 ルール:
 - 出力はMarkdownのみ（コードブロック・HTML・前置き/後置きは書かない）
-- 見出しは "##" を使う（例: "## 決定事項"）
-- 箇条書きは "-" を使う
-- 必要なら短いサブ見出し（"###"）は可
-- 重要語を太字にしない（**は使わない）
+- 見出しは3段階を使い分ける: "##"（大分類）、"###"（中分類）、"####"（小分類）
+- 箇条書きは "-" を使う。必要なら入れ子のリストも使う
+- 内容が複雑な場合は積極的に "###" や "####" で細分化する
 
 現在の議事録（Markdown）:
 ${previousSummary}
@@ -41,24 +40,21 @@ ${previousSummary}
 追加内容: ${cleanedCaptions}
 
 更新した議事録（Markdown）:
-## 議題
--`
+##`
   }
 
-  return `会議発言を議事録として、見出しを含むMarkdownで構造化して出力してください。
+  return `会議発言を議事録として、階層的な見出しを含むMarkdownで構造化して出力してください。
 
 ルール:
 - 出力はMarkdownのみ（コードブロック・HTML・前置き/後置きは書かない）
-- 見出しは "##" を使う（例: "## 決定事項"）
-- 箇条書きは "-" を使う
-- 必要なら短いサブ見出し（"###"）は可
-- 重要語を太字にしない（**は使わない）
+- 見出しは3段階を使い分ける: "##"（大分類）、"###"（中分類）、"####"（小分類）
+- 箇条書きは "-" を使う。必要なら入れ子のリストも使う
+- 内容が複雑な場合は積極的に "###" や "####" で細分化する
 
 発言: ${cleanedCaptions}
 
 議事録（Markdown）:
-## 議題
--`
+##`
 }
 
 export function buildWhiteboardImagePrompt(payload: GeminiWhiteboardImagePromptPayload): string {
