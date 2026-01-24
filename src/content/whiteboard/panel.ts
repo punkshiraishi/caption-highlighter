@@ -51,9 +51,17 @@ export class WhiteboardPanel {
   private isDragging = false
   private isResizing = false
   private dragOffset = { x: 0, y: 0 }
+  private sampleInjectCallback: (() => void) | null = null
 
   constructor(settings: WhiteboardSettings) {
     this.settings = settings
+  }
+
+  /**
+   * サンプル字幕注入後のコールバックを登録
+   */
+  onSampleInject(callback: () => void): void {
+    this.sampleInjectCallback = callback
   }
 
   /**
@@ -232,6 +240,8 @@ export class WhiteboardPanel {
     if (!__DEV__)
       return
     injectSampleCaptions()
+    // サンプル注入後、即座に処理を開始（バッファ待ちをスキップ）
+    this.sampleInjectCallback?.()
   }
 
   /**

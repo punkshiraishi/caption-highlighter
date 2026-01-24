@@ -59,6 +59,9 @@ async function initializeWhiteboard() {
   // パネルを作成
   whiteboardPanel.create()
 
+  // サンプル字幕注入後、即座にLLM処理を開始（バッファ待ちをスキップ）
+  whiteboardPanel.onSampleInject(() => whiteboardProcessor.forceProcess())
+
   whiteboardPanel.setProvider(currentSettings.ai.whiteboardProvider)
   whiteboardProcessor.setAiSettings(currentSettings.ai)
 
