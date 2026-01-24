@@ -10,12 +10,26 @@ export interface GeminiWhiteboardImagePromptPayload {
 /**
  * キャプションのクリーンアップ（途中経過を除去）
  * - 短すぎる行（15文字以下）を除外
- * - 残った行の最後3行をスペース結合
+ * - 末尾から最大2000文字を取得（LLMのコンテキスト制限対策）
  */
 export function cleanCaptionsForWhiteboard(captions: string): string {
   const lines = captions.split('\n')
   const filtered = lines.filter(line => line.length > 15)
-  return filtered.slice(-3).join(' ')
+
+  // 末尾から最大2000文字を取得
+  const maxChars = 2000
+  const result: string[] = []
+  let totalLength = 0
+
+  for (let i = filtered.length - 1; i >= 0; i--) {
+    const line = filtered[i]
+    if (totalLength + line.length + 1 > maxChars)
+      break
+    result.unshift(line)
+    totalLength += line.length + 1
+  }
+
+  return result.join(' ')
 }
 
 /**
