@@ -104,6 +104,9 @@ export class CaptionObserver {
     if (!element.isConnected)
       return false
 
+    if (element.getAttribute('role') === 'dialog')
+      return false
+
     if (element.querySelector('.ygicle, .VbkSUe, [data-language-code]'))
       return true
 
