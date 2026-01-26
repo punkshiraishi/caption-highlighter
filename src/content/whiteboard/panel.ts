@@ -415,11 +415,12 @@ export class WhiteboardPanel {
       if (state.markdownContent) {
         const prevBlocks = this.getMarkdownBlocks()
         const prevTexts = prevBlocks.map(block => (block.textContent ?? '').trim())
+        const highlightAll = prevTexts.length === 0 && this.markdownContent.length === 0
         const shouldHighlight = this.markdownContent && this.markdownContent !== state.markdownContent
         this.markdownContent = state.markdownContent
         this.contentEl.innerHTML = renderMarkdownToHtml(state.markdownContent)
-        if (shouldHighlight)
-          this.highlightChangedBlocks(prevTexts)
+        if (shouldHighlight || highlightAll)
+          this.highlightChangedBlocks(prevTexts, highlightAll)
       }
       else if (!state.isProcessing) {
         this.contentEl.textContent = '字幕を待機中...'
@@ -649,8 +650,8 @@ export class WhiteboardPanel {
     return Array.from(this.contentEl.querySelectorAll<HTMLElement>('h2,h3,h4,p,li,pre'))
   }
 
-  private highlightChangedBlocks(previousTexts: string[]): void {
-    if (!this.contentEl || previousTexts.length === 0)
+  private highlightChangedBlocks(previousTexts: string[], highlightAll = false): void {
+    if (!this.contentEl || (!highlightAll && previousTexts.length === 0))
       return
     if (this.highlightTimer) {
       clearTimeout(this.highlightTimer)
@@ -659,7 +660,9 @@ export class WhiteboardPanel {
     const blocks = this.getMarkdownBlocks()
     blocks.forEach((block, index) => {
       const text = (block.textContent ?? '').trim()
-      if (!text || previousTexts[index] === text)
+      if (!text)
+        return
+      if (!highlightAll && previousTexts[index] === text)
         return
       block.classList.add('whiteboard-panel__markdown-changed')
     })

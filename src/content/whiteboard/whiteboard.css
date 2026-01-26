@@ -297,9 +297,11 @@
 }
 
 .whiteboard-panel__markdown-changed {
-  animation: whiteboardMarkdownHighlight 1.5s ease;
+  animation: whiteboardMarkdownHighlight 2s ease;
   border-radius: 6px;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+  box-shadow:
+    0 0 0 2px rgba(99, 102, 241, 0.35),
+    0 0 12px rgba(99, 102, 241, 0.25);
 }
 
 .whiteboard-panel--minimized .whiteboard-panel__content {
@@ -713,7 +715,7 @@
 
 @keyframes whiteboardMarkdownHighlight {
   0% {
-    background: rgba(99, 102, 241, 0.25);
+    background: rgba(99, 102, 241, 0.35);
   }
   100% {
     background: transparent;
