@@ -44,6 +44,7 @@ export class WhiteboardPanel {
   private markdownStatusEl: HTMLElement | null = null
   private highlightTimer: ReturnType<typeof setTimeout> | null = null
   private markdownContent = ''
+  private renderedMarkdownContent = ''
   private imageDataUrl = ''
   private imageLoading = false
   private settings: WhiteboardSettings
@@ -413,17 +414,25 @@ export class WhiteboardPanel {
     // マークダウンコンテンツを表示
     if (this.contentEl) {
       if (state.markdownContent) {
-        const prevBlocks = this.getMarkdownBlocks()
-        const prevTexts = prevBlocks.map(block => (block.textContent ?? '').trim())
-        const highlightAll = prevTexts.length === 0 && this.markdownContent.length === 0
-        const shouldHighlight = this.markdownContent && this.markdownContent !== state.markdownContent
         this.markdownContent = state.markdownContent
-        this.contentEl.innerHTML = renderMarkdownToHtml(state.markdownContent)
-        if (shouldHighlight || highlightAll)
+        // isProcessing の更新でも updateState が呼ばれるため、
+        // 同じ内容を再描画するとハイライトが即消える。
+        // 内容が変わったときだけDOMを更新する。
+        if (this.renderedMarkdownContent !== state.markdownContent) {
+          const prevBlocks = this.getMarkdownBlocks()
+          const prevTexts = prevBlocks.map(block => (block.textContent ?? '').trim())
+          const highlightAll = prevTexts.length === 0 && this.renderedMarkdownContent.length === 0
+
+          this.contentEl.innerHTML = renderMarkdownToHtml(state.markdownContent)
+          this.renderedMarkdownContent = state.markdownContent
+
           this.highlightChangedBlocks(prevTexts, highlightAll)
+        }
       }
       else if (!state.isProcessing) {
         this.contentEl.textContent = '字幕を待機中...'
+        this.markdownContent = ''
+        this.renderedMarkdownContent = ''
       }
     }
     if (this.markdownStatusEl) {
@@ -642,6 +651,7 @@ export class WhiteboardPanel {
     this.imageEmptyEl = null
     this.markdownStatusEl = null
     this.highlightTimer = null
+    this.renderedMarkdownContent = ''
   }
 
   private getMarkdownBlocks(): HTMLElement[] {
@@ -669,6 +679,6 @@ export class WhiteboardPanel {
     this.highlightTimer = setTimeout(() => {
       blocks.forEach(block => block.classList.remove('whiteboard-panel__markdown-changed'))
       this.highlightTimer = null
-    }, 1500)
+    }, 2000)
   }
 }
