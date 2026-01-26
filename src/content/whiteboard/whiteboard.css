@@ -359,6 +359,13 @@
   padding: 0 8px;
 }
 
+.whiteboard-panel__btn--image-run:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.05);
+  color: #777;
+}
+
 .whiteboard-panel__btn.is-hidden {
   display: none;
 }

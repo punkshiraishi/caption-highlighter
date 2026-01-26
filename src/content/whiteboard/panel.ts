@@ -34,7 +34,7 @@ export class WhiteboardPanel {
   private debugRowEl: HTMLElement | null = null
   private debugButtonEl: HTMLButtonElement | null = null
   private copyBtn: HTMLElement | null = null
-  private imageRunBtn: HTMLElement | null = null
+  private imageRunBtn: HTMLButtonElement | null = null
   private markdownTabBtn: HTMLElement | null = null
   private imageTabBtn: HTMLElement | null = null
   private downloadBtn: HTMLElement | null = null
@@ -175,6 +175,7 @@ export class WhiteboardPanel {
     if (this.contentEl) {
       this.contentEl.textContent = '字幕を待機中...'
     }
+    this.imageRunBtn?.toggleAttribute('disabled', true)
 
     this.initializeDebugToggle()
 
@@ -422,6 +423,8 @@ export class WhiteboardPanel {
         this.contentEl.textContent = '字幕を待機中...'
       }
     }
+    const hasMarkdown = Boolean(state.markdownContent?.trim())
+    this.imageRunBtn?.toggleAttribute('disabled', !hasMarkdown)
   }
 
   /**
