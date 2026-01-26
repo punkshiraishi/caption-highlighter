@@ -66,12 +66,12 @@ export function injectSampleCaptions(): void {
 
 function findCaptionContainer(): HTMLElement | null {
   const direct = document.querySelector<HTMLElement>(CAPTION_CONTAINER_SELECTOR)
-  if (direct)
+  if (direct && !direct.closest('[role="dialog"]'))
     return direct
 
   for (const selector of DEFAULT_CAPTION_SELECTORS) {
     const found = document.querySelector<HTMLElement>(selector)
-    if (found)
+    if (found && !found.closest('[role="dialog"]'))
       return found
   }
 
