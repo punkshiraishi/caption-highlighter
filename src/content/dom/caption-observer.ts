@@ -97,14 +97,15 @@ export class CaptionObserver {
         return candidate
     }
 
-    return candidates[0] ?? null
+    const fallback = candidates.find(candidate => !this.isDialogContainer(candidate))
+    return fallback ?? null
   }
 
   private isCaptionContainer(element: HTMLElement): boolean {
     if (!element.isConnected)
       return false
 
-    if (element.getAttribute('role') === 'dialog')
+    if (this.isDialogContainer(element))
       return false
 
     if (element.querySelector('.ygicle, .VbkSUe, [data-language-code]'))
@@ -121,6 +122,10 @@ export class CaptionObserver {
       return false
 
     return Boolean(element.textContent?.trim())
+  }
+
+  private isDialogContainer(element: HTMLElement): boolean {
+    return Boolean(element.closest('[role="dialog"]'))
   }
 
   private attachTo(container: HTMLElement) {
@@ -162,6 +167,8 @@ export class CaptionObserver {
 
   private queue(element: HTMLElement) {
     if (!element.isConnected)
+      return
+    if (this.isDialogContainer(element))
       return
 
     element.setAttribute(CAPTION_DATA_ATTRIBUTE, '1')
