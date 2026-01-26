@@ -111,7 +111,6 @@ export class WhiteboardPanel {
           <span class="whiteboard-panel__status"></span>
         </div>
         <div class="whiteboard-panel__controls">
-          <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー"><span class="whiteboard-icon" aria-hidden="true">${ICON_COPY}</span></button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--minimize" title="最小化"><span class="whiteboard-icon" aria-hidden="true">${ICON_MINIMIZE}</span></button>
           <button class="whiteboard-panel__btn whiteboard-panel__btn--close" title="閉じる"><span class="whiteboard-icon" aria-hidden="true">${ICON_CLOSE}</span></button>
         </div>
@@ -122,6 +121,12 @@ export class WhiteboardPanel {
       </div>
       <div class="whiteboard-panel__content">
         <div class="whiteboard-panel__view whiteboard-panel__view--markdown is-active">
+          <div class="whiteboard-panel__image-toolbar whiteboard-panel__markdown-toolbar">
+            <span class="whiteboard-panel__image-hint">要約メモ</span>
+            <div class="whiteboard-panel__image-actions">
+              <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー"><span class="whiteboard-icon" aria-hidden="true">${ICON_COPY}</span></button>
+            </div>
+          </div>
           <div class="whiteboard-panel__markdown"></div>
         </div>
         <div class="whiteboard-panel__view whiteboard-panel__view--image">

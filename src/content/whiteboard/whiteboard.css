@@ -194,6 +194,11 @@
   flex-direction: column;
 }
 
+.whiteboard-panel__view--markdown.is-active {
+  display: flex;
+  flex-direction: column;
+}
+
 /* ===== マークダウン表示 ===== */
 .whiteboard-panel__markdown {
   margin: 0;
@@ -206,6 +211,8 @@
   word-break: break-word;
   background: transparent;
   border: none;
+  flex: 1;
+  overflow: auto;
 }
 
 .whiteboard-panel__markdown h2,
