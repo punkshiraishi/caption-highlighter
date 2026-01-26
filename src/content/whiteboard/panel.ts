@@ -130,7 +130,6 @@ export class WhiteboardPanel {
         </div>
         <div class="whiteboard-panel__view whiteboard-panel__view--image">
           <div class="whiteboard-panel__image-toolbar">
-            <span class="whiteboard-panel__image-hint">画像はボタン押下で生成されます</span>
             <div class="whiteboard-panel__image-actions">
               <button class="whiteboard-panel__btn whiteboard-panel__btn--image-run" title="画像を生成">生成</button>
               <button class="whiteboard-panel__btn whiteboard-panel__btn--download" title="画像を保存">DL</button>
