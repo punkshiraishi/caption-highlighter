@@ -5,7 +5,7 @@
 
 import { getGeminiFlashClient } from '../ai/gemini-flash'
 import { injectSampleCaptions } from '../dev/sample-captions'
-import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_MINIMIZE, ICON_WARNING } from './icons'
+import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_MAXIMIZE, ICON_MINIMIZE, ICON_WARNING } from './icons'
 import { renderMarkdownToHtml } from './markdown/render'
 import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 import type { WhiteboardProvider } from '~/shared/models/settings'
@@ -34,6 +34,7 @@ export class WhiteboardPanel {
   private debugRowEl: HTMLElement | null = null
   private debugButtonEl: HTMLButtonElement | null = null
   private copyBtn: HTMLElement | null = null
+  private minimizeBtn: HTMLButtonElement | null = null
   private imageRunBtn: HTMLButtonElement | null = null
   private markdownTabBtn: HTMLElement | null = null
   private imageTabBtn: HTMLElement | null = null
@@ -170,6 +171,7 @@ export class WhiteboardPanel {
     this.imageEl = this.panel.querySelector('.whiteboard-panel__image')
     this.imageStatusEl = this.panel.querySelector('.whiteboard-panel__image-status')
     this.imageEmptyEl = this.panel.querySelector('.whiteboard-panel__image-empty')
+    this.minimizeBtn = this.panel.querySelector('.whiteboard-panel__btn--minimize')
 
     // 初期メッセージを表示
     if (this.contentEl) {
@@ -205,8 +207,7 @@ export class WhiteboardPanel {
     this.imageRunBtn?.addEventListener('click', () => this.generateImage())
 
     // 最小化ボタン
-    const minimizeBtn = this.panel.querySelector('.whiteboard-panel__btn--minimize')
-    minimizeBtn?.addEventListener('click', () => this.toggleMinimize())
+    this.minimizeBtn?.addEventListener('click', () => this.toggleMinimize())
 
     // 閉じるボタン
     const closeBtn = this.panel.querySelector('.whiteboard-panel__btn--close')
@@ -396,6 +397,12 @@ export class WhiteboardPanel {
 
     this.isMinimized = !this.isMinimized
     this.panel.classList.toggle('whiteboard-panel--minimized', this.isMinimized)
+    if (this.minimizeBtn) {
+      const icon = this.isMinimized ? ICON_MAXIMIZE : ICON_MINIMIZE
+      const title = this.isMinimized ? '最大化' : '最小化'
+      this.minimizeBtn.innerHTML = `<span class="whiteboard-icon" aria-hidden="true">${icon}</span>`
+      this.minimizeBtn.title = title
+    }
   }
 
   /**
@@ -625,6 +632,7 @@ export class WhiteboardPanel {
     this.debugRowEl = null
     this.debugButtonEl = null
     this.copyBtn = null
+    this.minimizeBtn = null
     this.imageRunBtn = null
     this.markdownTabBtn = null
     this.imageTabBtn = null
