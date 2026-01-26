@@ -132,7 +132,7 @@ export class WhiteboardPanel {
           <div class="whiteboard-panel__image-toolbar">
             <div class="whiteboard-panel__image-actions">
               <button class="whiteboard-panel__btn whiteboard-panel__btn--image-run" title="画像を生成">生成</button>
-              <button class="whiteboard-panel__btn whiteboard-panel__btn--download" title="画像を保存">DL</button>
+              <button class="whiteboard-panel__btn whiteboard-panel__btn--download is-hidden" title="画像を保存">DL</button>
             </div>
           </div>
           <div class="whiteboard-panel__image-canvas-wrap">
@@ -571,6 +571,7 @@ export class WhiteboardPanel {
       this.imageEl.src = this.imageDataUrl || ''
       this.imageEl.classList.toggle('is-empty', !this.imageDataUrl)
     }
+    this.downloadBtn?.classList.toggle('is-hidden', !this.imageDataUrl)
     this.toggleImageEmpty(!this.imageDataUrl)
   }
 

@@ -355,6 +355,10 @@
   padding: 0 8px;
 }
 
+.whiteboard-panel__btn.is-hidden {
+  display: none;
+}
+
 .whiteboard-panel__image-canvas-wrap {
   position: relative;
   padding: 12px;
