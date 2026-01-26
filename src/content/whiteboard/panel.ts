@@ -29,7 +29,6 @@ export class WhiteboardPanel {
   private contentEl: HTMLElement | null = null
   private markdownViewEl: HTMLElement | null = null
   private imageViewEl: HTMLElement | null = null
-  private statusEl: HTMLElement | null = null
   private footerInfoEl: HTMLElement | null = null
   private debugRowEl: HTMLElement | null = null
   private debugButtonEl: HTMLButtonElement | null = null
@@ -42,6 +41,7 @@ export class WhiteboardPanel {
   private imageEl: HTMLImageElement | null = null
   private imageStatusEl: HTMLElement | null = null
   private imageEmptyEl: HTMLElement | null = null
+  private markdownStatusEl: HTMLElement | null = null
   private markdownContent = ''
   private imageDataUrl = ''
   private imageLoading = false
@@ -108,7 +108,6 @@ export class WhiteboardPanel {
         <div class="whiteboard-panel__title">
           <span class="whiteboard-panel__title-icon"><span class="whiteboard-icon" aria-hidden="true">${ICON_CLIPBOARD}</span></span>
           <span>ホワイトボード</span>
-          <span class="whiteboard-panel__status"></span>
         </div>
         <div class="whiteboard-panel__controls">
           <button class="whiteboard-panel__btn whiteboard-panel__btn--minimize" title="最小化"><span class="whiteboard-icon" aria-hidden="true">${ICON_MINIMIZE}</span></button>
@@ -126,6 +125,7 @@ export class WhiteboardPanel {
               <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー"><span class="whiteboard-icon" aria-hidden="true">${ICON_COPY}</span></button>
             </div>
           </div>
+          <div class="whiteboard-panel__markdown-status"></div>
           <div class="whiteboard-panel__markdown"></div>
         </div>
         <div class="whiteboard-panel__view whiteboard-panel__view--image">
@@ -159,7 +159,6 @@ export class WhiteboardPanel {
     this.contentEl = this.panel.querySelector('.whiteboard-panel__markdown')
     this.markdownViewEl = this.panel.querySelector('.whiteboard-panel__view--markdown')
     this.imageViewEl = this.panel.querySelector('.whiteboard-panel__view--image')
-    this.statusEl = this.panel.querySelector('.whiteboard-panel__status')
     this.footerInfoEl = this.panel.querySelector('.whiteboard-panel__footer-info')
     this.debugRowEl = this.panel.querySelector('.whiteboard-panel__debug')
     this.debugButtonEl = this.panel.querySelector('.whiteboard-panel__debug-btn')
@@ -171,6 +170,7 @@ export class WhiteboardPanel {
     this.imageEl = this.panel.querySelector('.whiteboard-panel__image')
     this.imageStatusEl = this.panel.querySelector('.whiteboard-panel__image-status')
     this.imageEmptyEl = this.panel.querySelector('.whiteboard-panel__image-empty')
+    this.markdownStatusEl = this.panel.querySelector('.whiteboard-panel__markdown-status')
     this.minimizeBtn = this.panel.querySelector('.whiteboard-panel__btn--minimize')
 
     // 初期メッセージを表示
@@ -409,17 +409,6 @@ export class WhiteboardPanel {
    * 状態を更新
    */
   updateState(state: WhiteboardState): void {
-    if (this.statusEl) {
-      if (state.isProcessing) {
-        this.statusEl.textContent = '処理中...'
-        this.statusEl.className = 'whiteboard-panel__status whiteboard-panel__status--processing'
-      }
-      else {
-        this.statusEl.textContent = ''
-        this.statusEl.className = 'whiteboard-panel__status'
-      }
-    }
-
     // マークダウンコンテンツを表示
     if (this.contentEl) {
       if (state.markdownContent) {
@@ -429,6 +418,11 @@ export class WhiteboardPanel {
       else if (!state.isProcessing) {
         this.contentEl.textContent = '字幕を待機中...'
       }
+    }
+    if (this.markdownStatusEl) {
+      const show = state.isProcessing
+      this.markdownStatusEl.textContent = show ? '生成中' : ''
+      this.markdownStatusEl.classList.toggle('is-visible', show)
     }
     const hasMarkdown = Boolean(state.markdownContent?.trim())
     this.imageRunBtn?.toggleAttribute('disabled', !hasMarkdown)
@@ -627,7 +621,6 @@ export class WhiteboardPanel {
     this.contentEl = null
     this.markdownViewEl = null
     this.imageViewEl = null
-    this.statusEl = null
     this.footerInfoEl = null
     this.debugRowEl = null
     this.debugButtonEl = null
@@ -640,5 +633,6 @@ export class WhiteboardPanel {
     this.imageEl = null
     this.imageStatusEl = null
     this.imageEmptyEl = null
+    this.markdownStatusEl = null
   }
 }
