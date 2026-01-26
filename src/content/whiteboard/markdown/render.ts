@@ -2,7 +2,7 @@
  * Minimal, safe Markdown renderer for content script UI.
  *
  * - Escapes all HTML first (so AI output can't inject HTML)
- * - Supports: headings (#/##/###), paragraphs, unordered/ordered lists (flat),
+ * - Supports: headings (##/###/####), paragraphs, unordered/ordered lists (flat),
  *   fenced code blocks (```), inline code (`code`).
  *
  * NOTE: This is intentionally small to avoid pulling in heavy markdown libs.
@@ -106,14 +106,13 @@ export function renderMarkdownToHtml(markdown: string): string {
       continue
     }
 
-    // Headings
-    const h = /^(#{1,3})\s+(.*)$/.exec(trimmed.trim())
+    // Headings (## → h2, ### → h3, #### → h4)
+    const h = /^(#{2,4})\s+(.*)$/.exec(trimmed.trim())
     if (h) {
       flushParagraph()
       closeList()
       const level = h[1].length
-      // Use h2-h4 inside the panel to avoid huge headings
-      const tag = level === 1 ? 'h2' : level === 2 ? 'h3' : 'h4'
+      const tag = level === 2 ? 'h2' : level === 3 ? 'h3' : 'h4'
       out.push(`<${tag}>${renderInline(h[2].trim())}</${tag}>`)
       continue
     }
