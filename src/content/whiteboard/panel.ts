@@ -30,7 +30,6 @@ export class WhiteboardPanel {
   private markdownViewEl: HTMLElement | null = null
   private imageViewEl: HTMLElement | null = null
   private statusEl: HTMLElement | null = null
-  private footerEl: HTMLElement | null = null
   private footerInfoEl: HTMLElement | null = null
   private debugRowEl: HTMLElement | null = null
   private debugButtonEl: HTMLButtonElement | null = null
@@ -147,7 +146,6 @@ export class WhiteboardPanel {
       <div class="whiteboard-panel__footer">
         <div class="whiteboard-panel__footer-main">
           <span class="whiteboard-panel__footer-info">Gemini Nano で構造化</span>
-          <span class="whiteboard-panel__footer-count"></span>
         </div>
         <div class="whiteboard-panel__debug">
           <button class="whiteboard-panel__debug-btn" type="button">サンプル字幕を注入</button>
@@ -163,7 +161,6 @@ export class WhiteboardPanel {
     this.markdownViewEl = this.panel.querySelector('.whiteboard-panel__view--markdown')
     this.imageViewEl = this.panel.querySelector('.whiteboard-panel__view--image')
     this.statusEl = this.panel.querySelector('.whiteboard-panel__status')
-    this.footerEl = this.panel.querySelector('.whiteboard-panel__footer-count')
     this.footerInfoEl = this.panel.querySelector('.whiteboard-panel__footer-info')
     this.debugRowEl = this.panel.querySelector('.whiteboard-panel__debug')
     this.debugButtonEl = this.panel.querySelector('.whiteboard-panel__debug-btn')
@@ -427,15 +424,6 @@ export class WhiteboardPanel {
         this.contentEl.textContent = '字幕を待機中...'
       }
     }
-
-    // 行数を表示
-    if (this.footerEl && state.markdownContent) {
-      const lines = state.markdownContent.split('\n').map(l => l.trim()).filter(Boolean)
-      const listCount = lines.filter(l => /^(?:[-*]\s+|\d+\.\s+)/.test(l)).length
-      const headingCount = lines.filter(l => /^#{1,6}\s+/.test(l)).length
-      const count = listCount || headingCount || lines.length
-      this.footerEl.textContent = `${count} 項目`
-    }
   }
 
   /**
@@ -631,7 +619,6 @@ export class WhiteboardPanel {
     this.markdownViewEl = null
     this.imageViewEl = null
     this.statusEl = null
-    this.footerEl = null
     this.footerInfoEl = null
     this.debugRowEl = null
     this.debugButtonEl = null
