@@ -100,7 +100,7 @@ const USER_NAME_CLASS = 'NWpY1d'
 const CAPTION_TEXT_CLASS = 'ygicle VbkSUe'
 
 /** 注入間隔（ミリ秒） */
-const INJECT_INTERVAL_MS = 400
+const INJECT_INTERVAL_MS = 5000
 
 /**
  * サンプル字幕を少しずつ注入（リアルタイム字幕をシミュレート）
