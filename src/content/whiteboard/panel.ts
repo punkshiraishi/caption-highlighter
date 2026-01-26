@@ -121,7 +121,6 @@ export class WhiteboardPanel {
       <div class="whiteboard-panel__content">
         <div class="whiteboard-panel__view whiteboard-panel__view--markdown is-active">
           <div class="whiteboard-panel__image-toolbar whiteboard-panel__markdown-toolbar">
-            <span class="whiteboard-panel__image-hint">要約メモ</span>
             <div class="whiteboard-panel__image-actions">
               <button class="whiteboard-panel__btn whiteboard-panel__btn--copy" title="コピー"><span class="whiteboard-icon" aria-hidden="true">${ICON_COPY}</span></button>
             </div>

@@ -332,6 +332,10 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.whiteboard-panel__markdown-toolbar {
+  justify-content: flex-end;
+}
+
 .whiteboard-panel__image-hint {
   font-size: 10px;
   color: #888;
