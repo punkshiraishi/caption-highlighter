@@ -25,11 +25,11 @@ function renderInline(text: string): string {
 }
 
 function isUnorderedListItem(line: string): RegExpExecArray | null {
-  return /^(\s*)[-*]\s+(.*)$/.exec(line)
+  return /^([ \t]*)[-*][ \t]+([^\t \r\n].*)$/.exec(line)
 }
 
 function isOrderedListItem(line: string): RegExpExecArray | null {
-  return /^(\s*)\d+\.\s+(.*)$/.exec(line)
+  return /^([ \t]*)\d+\.[ \t]+([^\t \r\n].*)$/.exec(line)
 }
 
 export function renderMarkdownToHtml(markdown: string): string {
@@ -107,7 +107,7 @@ export function renderMarkdownToHtml(markdown: string): string {
     }
 
     // Headings (## → h2, ### → h3, #### → h4)
-    const h = /^(#{2,4})\s+(.*)$/.exec(trimmed.trim())
+    const h = /^(#{2,4})[ \t]+([^\t \r\n].*)$/.exec(trimmed.trim())
     if (h) {
       flushParagraph()
       closeList()
@@ -144,5 +144,3 @@ export function renderMarkdownToHtml(markdown: string): string {
 
   return out.join('\n')
 }
-
-
