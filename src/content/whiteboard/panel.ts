@@ -42,6 +42,7 @@ export class WhiteboardPanel {
   private imageStatusEl: HTMLElement | null = null
   private imageEmptyEl: HTMLElement | null = null
   private markdownStatusEl: HTMLElement | null = null
+  private highlightTimer: ReturnType<typeof setTimeout> | null = null
   private markdownContent = ''
   private imageDataUrl = ''
   private imageLoading = false
@@ -412,8 +413,13 @@ export class WhiteboardPanel {
     // マークダウンコンテンツを表示
     if (this.contentEl) {
       if (state.markdownContent) {
+        const prevBlocks = this.getMarkdownBlocks()
+        const prevTexts = prevBlocks.map(block => (block.textContent ?? '').trim())
+        const shouldHighlight = this.markdownContent && this.markdownContent !== state.markdownContent
         this.markdownContent = state.markdownContent
         this.contentEl.innerHTML = renderMarkdownToHtml(state.markdownContent)
+        if (shouldHighlight)
+          this.highlightChangedBlocks(prevTexts)
       }
       else if (!state.isProcessing) {
         this.contentEl.textContent = '字幕を待機中...'
@@ -634,5 +640,32 @@ export class WhiteboardPanel {
     this.imageStatusEl = null
     this.imageEmptyEl = null
     this.markdownStatusEl = null
+    this.highlightTimer = null
+  }
+
+  private getMarkdownBlocks(): HTMLElement[] {
+    if (!this.contentEl)
+      return []
+    return Array.from(this.contentEl.querySelectorAll<HTMLElement>('h2,h3,h4,p,li,pre'))
+  }
+
+  private highlightChangedBlocks(previousTexts: string[]): void {
+    if (!this.contentEl || previousTexts.length === 0)
+      return
+    if (this.highlightTimer) {
+      clearTimeout(this.highlightTimer)
+      this.highlightTimer = null
+    }
+    const blocks = this.getMarkdownBlocks()
+    blocks.forEach((block, index) => {
+      const text = (block.textContent ?? '').trim()
+      if (!text || previousTexts[index] === text)
+        return
+      block.classList.add('whiteboard-panel__markdown-changed')
+    })
+    this.highlightTimer = setTimeout(() => {
+      blocks.forEach(block => block.classList.remove('whiteboard-panel__markdown-changed'))
+      this.highlightTimer = null
+    }, 1500)
   }
 }

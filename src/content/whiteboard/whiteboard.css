@@ -296,6 +296,12 @@
   white-space: pre;
 }
 
+.whiteboard-panel__markdown-changed {
+  animation: whiteboardMarkdownHighlight 1.5s ease;
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
 .whiteboard-panel--minimized .whiteboard-panel__content {
   display: none;
 }
@@ -702,6 +708,15 @@
   }
   50% {
     opacity: 0.5;
+  }
+}
+
+@keyframes whiteboardMarkdownHighlight {
+  0% {
+    background: rgba(99, 102, 241, 0.25);
+  }
+  100% {
+    background: transparent;
   }
 }
 
