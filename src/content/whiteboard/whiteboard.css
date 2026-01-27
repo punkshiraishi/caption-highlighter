@@ -218,7 +218,8 @@
 
 .whiteboard-panel__markdown h2,
 .whiteboard-panel__markdown h3,
-.whiteboard-panel__markdown h4 {
+.whiteboard-panel__markdown h4,
+.whiteboard-panel__markdown h5 {
   line-height: 1.35;
   color: #e0e7ff;
 }
@@ -253,6 +254,30 @@
   font-weight: 600;
   color: #c7d2fe;
   border: none;
+}
+
+/* h5: さらに小さい見出し - 下線なし */
+.whiteboard-panel__markdown h5 {
+  margin: 6px 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #cbd5f5;
+}
+
+.whiteboard-panel__markdown hr {
+  border: none;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  margin: 10px 0;
+}
+
+.whiteboard-panel__markdown strong {
+  color: #eef2ff;
+  font-weight: 700;
+}
+
+.whiteboard-panel__markdown em {
+  color: #e0e7ff;
+  font-style: italic;
 }
 
 .whiteboard-panel__markdown p {

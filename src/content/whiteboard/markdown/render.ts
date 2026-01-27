@@ -17,11 +17,33 @@ function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;')
 }
 
+function renderEmphasis(escapedText: string): string {
+  // Bold first, then italic (keep patterns simple to avoid pathological backtracking)
+  const boldStar = /\*\*([^*\r\n]+)\*\*/g
+  const boldUnderscore = /__([^_\r\n]+)__/g
+  const italicStar = /\*([^*\r\n]+)\*/g
+  const italicUnderscore = /_([^_\r\n]+)_/g
+
+  return escapedText
+    .replace(boldStar, '<strong>$1</strong>')
+    .replace(boldUnderscore, '<strong>$1</strong>')
+    .replace(italicStar, '<em>$1</em>')
+    .replace(italicUnderscore, '<em>$1</em>')
+}
+
 function renderInline(text: string): string {
   // Escape first, then add minimal inline formatting.
-  const escaped = escapeHtml(text)
-  // Inline code
-  return escaped.replace(/`([^`]+)`/g, '<code>$1</code>')
+  // Inline code is handled first by splitting, so emphasis won't touch code spans.
+  const parts = text.split(/`([^`]+)`/g)
+  return parts
+    .map((part, idx) => {
+      const escaped = escapeHtml(part)
+      // Odd indices are code captures
+      if (idx % 2 === 1)
+        return `<code>${escaped}</code>`
+      return renderEmphasis(escaped)
+    })
+    .join('')
 }
 
 function isUnorderedListItem(line: string): RegExpExecArray | null {
@@ -106,13 +128,21 @@ export function renderMarkdownToHtml(markdown: string): string {
       continue
     }
 
-    // Headings (## → h2, ### → h3, #### → h4)
-    const h = /^(#{2,4})[ \t]+([^\t \r\n].*)$/.exec(trimmed.trim())
+    // Horizontal rule (--- / *** / ___)
+    if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed.trim())) {
+      flushParagraph()
+      closeList()
+      out.push('<hr>')
+      continue
+    }
+
+    // Headings (## → h2 ... ##### → h5)
+    const h = /^(#{2,5})[ \t]+([^\t \r\n].*)$/.exec(trimmed.trim())
     if (h) {
       flushParagraph()
       closeList()
       const level = h[1].length
-      const tag = level === 2 ? 'h2' : level === 3 ? 'h3' : 'h4'
+      const tag = level === 2 ? 'h2' : level === 3 ? 'h3' : level === 4 ? 'h4' : 'h5'
       out.push(`<${tag}>${renderInline(h[2].trim())}</${tag}>`)
       continue
     }
