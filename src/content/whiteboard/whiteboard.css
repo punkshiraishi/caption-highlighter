@@ -298,7 +298,7 @@
 
 .whiteboard-panel__markdown-changed {
   animation: whiteboardMarkdownHighlight 2s ease;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: none;
   border: none;
   outline: none;
