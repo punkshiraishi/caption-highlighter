@@ -40,7 +40,7 @@ ${previousSummary}
 追加内容: ${cleanedCaptions}
 
 更新した議事録（Markdown）:
-##`
+`
   }
 
   return `会議発言を議事録として、階層的な見出しを含むMarkdownで構造化して出力してください。
@@ -54,7 +54,7 @@ ${previousSummary}
 発言: ${cleanedCaptions}
 
 議事録（Markdown）:
-##`
+`
 }
 
 export function buildWhiteboardImagePrompt(payload: GeminiWhiteboardImagePromptPayload): string {
