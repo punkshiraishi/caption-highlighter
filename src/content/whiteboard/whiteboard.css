@@ -673,6 +673,18 @@
   font-size: 11px;
 }
 
+.whiteboard-panel__docs-sync-status[data-phase="syncing"] {
+  color: #93c5fd;
+}
+
+.whiteboard-panel__docs-sync-status[data-phase="success"] {
+  color: #86efac;
+}
+
+.whiteboard-panel__docs-sync-status[data-phase="error"] {
+  color: #fca5a5;
+}
+
 .whiteboard-panel__docs-sync-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;

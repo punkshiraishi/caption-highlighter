@@ -42,6 +42,8 @@ export class WhiteboardPanel {
   private debugButtonEl: HTMLButtonElement | null = null
   private docsTabs: GoogleDocsTabSummary[] = []
   private docsSyncStatus: GoogleDocsSyncStatus | null = null
+  private docsSyncPhase: 'idle' | 'syncing' | 'success' | 'error' = 'idle'
+  private docsSyncMessage: string | null = null
   private copyBtn: HTMLElement | null = null
   private minimizeBtn: HTMLButtonElement | null = null
   private imageRunBtn: HTMLButtonElement | null = null
@@ -268,9 +270,16 @@ export class WhiteboardPanel {
     if (!this.debugRowEl || !this.debugButtonEl)
       return
 
-    if (!__DEV__) {
+    const manifest = browser.runtime.getManifest()
+    const isPackagedProduction = !__DEV__ && 'update_url' in manifest
+    if (isPackagedProduction)
       this.debugRowEl.style.display = 'none'
-    }
+  }
+
+  setDocsSyncPhase(phase: 'idle' | 'syncing' | 'success' | 'error', message: string | null = null): void {
+    this.docsSyncPhase = phase
+    this.docsSyncMessage = message
+    this.renderGoogleDocsStatus()
   }
 
   private handleSampleInject(): void {
@@ -286,14 +295,27 @@ export class WhiteboardPanel {
       return
 
     const state = this.docsSyncStatus?.state ?? 'unbound'
-    this.docsSyncStatusEl.textContent = state === 'ready'
+    const baseText = state === 'ready'
       ? `接続中${this.docsSyncStatus?.binding?.title ? `: ${this.docsSyncStatus.binding.title}` : ''}`
       : state === 'stale'
         ? '再バインドが必要'
         : '未設定'
 
-    this.docsSyncUnbindBtn.disabled = !this.docsSyncStatus?.binding
-    this.docsSyncBindBtn.disabled = !this.docsSyncSelectEl.value
+    const phaseText = this.docsSyncPhase === 'syncing'
+      ? ' / 同期中…'
+      : this.docsSyncPhase === 'success'
+        ? this.docsSyncMessage ? ` / ${this.docsSyncMessage}` : ' / 同期済み'
+        : this.docsSyncPhase === 'error'
+          ? this.docsSyncMessage ? ` / エラー: ${this.docsSyncMessage}` : ' / エラー'
+          : ''
+
+    this.docsSyncStatusEl.textContent = `${baseText}${phaseText}`
+    this.docsSyncStatusEl.dataset.phase = this.docsSyncPhase
+
+    this.docsSyncUnbindBtn.disabled = !this.docsSyncStatus?.binding || this.docsSyncPhase === 'syncing'
+    this.docsSyncBindBtn.disabled = !this.docsSyncSelectEl.value || this.docsSyncPhase === 'syncing'
+    if (this.docsSyncRefreshBtn)
+      this.docsSyncRefreshBtn.disabled = this.docsSyncPhase === 'syncing'
   }
 
   private populateGoogleDocsSelect(): void {

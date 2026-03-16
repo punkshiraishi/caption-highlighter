@@ -1,13 +1,13 @@
 import './styles.css'
 import './whiteboard/whiteboard.css'
 import 'uno.css'
+import browser from 'webextension-polyfill'
 import { CaptionObserver, DEFAULT_CAPTION_SELECTORS } from './dom/caption-observer'
 import { CaptionHighlighter, applyThemeVariables } from './highlight/highlighter'
 import { TooltipController } from './highlight/tooltip'
 import { WhiteboardPanel, WhiteboardProcessor, getDefaultWhiteboardSettings, getGeminiNanoClient } from './whiteboard'
 import { type UserSettings, applyUserSettingsDefaults } from '~/shared/models/settings'
 import { loadUserSettings, observeSettings } from '~/shared/storage/settings'
-import browser from 'webextension-polyfill'
 
 /* eslint-disable no-console */
 
@@ -153,19 +153,24 @@ async function syncWhiteboardToGoogleDocs(markdownContent: string, lastUpdated: 
     return
 
   try {
+    whiteboardPanel.setDocsSyncPhase('syncing')
+
     const response = await browser.runtime.sendMessage({
       type: 'gdocs-sync:push-update',
       payload: { markdownContent, lastUpdated },
     }) as { ok?: boolean, error?: string } | undefined
 
     if (!response?.ok) {
+      whiteboardPanel.setDocsSyncPhase('error', response?.error ?? '同期に失敗しました')
       console.warn('[caption-highlighter] Google Docs sync rejected update', response?.error)
       return
     }
 
     lastPushedMarkdown = markdownContent
+    whiteboardPanel.setDocsSyncPhase('success', '同期済み')
   }
   catch (error) {
+    whiteboardPanel.setDocsSyncPhase('error', error instanceof Error ? error.message : String(error))
     console.warn('[caption-highlighter] Failed to sync whiteboard to Google Docs', error)
   }
 }
