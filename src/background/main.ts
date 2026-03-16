@@ -4,6 +4,13 @@ import type { UserSettings } from '~/shared/models/settings'
 import { loadSecrets } from '~/shared/storage/secrets'
 import { GEMINI_FLASH_FIXED_MODEL, GEMINI_IMAGE_MODEL } from '~/shared/ai/gemini'
 import { pickPreferredImageModel } from '~/shared/ai/gemini-models'
+import {
+  handleBindGoogleDocsTab,
+  handleGetGoogleDocsStatus,
+  handleListGoogleDocsTabs,
+  handlePushGoogleDocsUpdate,
+  handleUnbindGoogleDocsTab,
+} from './google-docs-sync'
 
 if (import.meta.hot) {
   // @ts-expect-error background HMR
@@ -25,6 +32,11 @@ type MessagePayload =
   | { type: 'ai:flash:test', payload?: { model?: string } }
   | { type: 'ai:flash:summarize', payload: { model?: string, prompt: string } }
   | { type: 'ai:flash:generate-image', payload: { prompt: string } }
+  | { type: 'gdocs-sync:list-tabs' }
+  | { type: 'gdocs-sync:bind-tab', payload: { tabId: number } }
+  | { type: 'gdocs-sync:unbind' }
+  | { type: 'gdocs-sync:get-status' }
+  | { type: 'gdocs-sync:push-update', payload: { markdownContent: string, lastUpdated: number } }
 
 browser.runtime.onMessage.addListener(async (message: unknown) => {
   if (!message || typeof message !== 'object')
@@ -122,6 +134,21 @@ browser.runtime.onMessage.addListener(async (message: unknown) => {
     const image = await callGeminiImage({ apiKey, model, prompt: msg.payload.prompt })
     return { ok: true, image }
   }
+
+  if (msg.type === 'gdocs-sync:list-tabs')
+    return handleListGoogleDocsTabs()
+
+  if (msg.type === 'gdocs-sync:bind-tab')
+    return handleBindGoogleDocsTab(msg.payload.tabId)
+
+  if (msg.type === 'gdocs-sync:unbind')
+    return handleUnbindGoogleDocsTab()
+
+  if (msg.type === 'gdocs-sync:get-status')
+    return handleGetGoogleDocsStatus()
+
+  if (msg.type === 'gdocs-sync:push-update')
+    return handlePushGoogleDocsUpdate(msg.payload.markdownContent)
 })
 
 const IMAGE_MODEL_CACHE_TTL = 5 * 60 * 1000

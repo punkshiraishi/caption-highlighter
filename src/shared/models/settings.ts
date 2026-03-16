@@ -30,11 +30,26 @@ export interface AiSettings {
   flashModel: string
 }
 
+export interface GoogleDocsBinding {
+  tabId: number
+  windowId: number
+  url: string
+  title: string
+  documentId: string
+  boundAt: number
+}
+
+export interface GoogleDocsSyncSettings {
+  enabled: boolean
+  binding: GoogleDocsBinding | null
+}
+
 export interface UserSettings {
   dictionary: DictionaryState
   matching: MatchingSettings
   theme: ThemeSettings
   ai: AiSettings
+  docsSync: GoogleDocsSyncSettings
 }
 
 export const DEFAULT_MATCHING_SETTINGS: MatchingSettings = {
@@ -58,11 +73,17 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   flashModel: GEMINI_FLASH_FIXED_MODEL,
 }
 
+export const DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS: GoogleDocsSyncSettings = {
+  enabled: false,
+  binding: null,
+}
+
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   dictionary: DEFAULT_DICTIONARY_STATE,
   matching: DEFAULT_MATCHING_SETTINGS,
   theme: DEFAULT_THEME_SETTINGS,
   ai: DEFAULT_AI_SETTINGS,
+  docsSync: DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS,
 }
 
 export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): UserSettings {
@@ -83,5 +104,10 @@ export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): User
     matching: { ...DEFAULT_MATCHING_SETTINGS, ...partial?.matching },
     theme: { ...DEFAULT_THEME_SETTINGS, ...partial?.theme },
     ai: { ...DEFAULT_AI_SETTINGS, ...partial?.ai },
+    docsSync: {
+      ...DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS,
+      ...partial?.docsSync,
+      binding: partial?.docsSync?.binding ? { ...partial.docsSync.binding } : null,
+    },
   }
 }

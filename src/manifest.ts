@@ -38,8 +38,12 @@ export async function getManifest() {
     },
     permissions: [
       'storage',
+      'tabs',
     ],
-    host_permissions: ['https://meet.google.com/*'],
+    host_permissions: [
+      'https://meet.google.com/*',
+      'https://docs.google.com/*',
+    ],
     optional_host_permissions: [
       'https://generativelanguage.googleapis.com/*',
     ],
@@ -48,6 +52,11 @@ export async function getManifest() {
         matches: ['https://meet.google.com/*'],
         js: ['dist/contentScripts/index.global.js'],
         css: ['dist/contentScripts/style.css'],
+        run_at: 'document_idle',
+      },
+      {
+        matches: ['https://docs.google.com/document/*'],
+        js: ['dist/contentScripts/gdocs-sync.global.js'],
         run_at: 'document_idle',
       },
       // Gemini Nano bridge script runs in MAIN world to access LanguageModel API

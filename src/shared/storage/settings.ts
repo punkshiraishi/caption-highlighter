@@ -31,6 +31,11 @@ function normalizeSettings(settings: UserSettings): UserSettings {
     matching: { ...DEFAULT_USER_SETTINGS.matching, ...settings.matching },
     theme: { ...DEFAULT_USER_SETTINGS.theme, ...settings.theme },
     ai: { ...DEFAULT_USER_SETTINGS.ai, ...settings.ai },
+    docsSync: {
+      ...DEFAULT_USER_SETTINGS.docsSync,
+      ...settings.docsSync,
+      binding: settings.docsSync.binding ? { ...settings.docsSync.binding } : null,
+    },
   }
 }
 
@@ -41,6 +46,7 @@ function deserializeSettings(payload: StoredSettingsPayload | null): UserSetting
       matching: { ...DEFAULT_USER_SETTINGS.matching },
       theme: { ...DEFAULT_USER_SETTINGS.theme },
       ai: { ...DEFAULT_USER_SETTINGS.ai },
+      docsSync: { ...DEFAULT_USER_SETTINGS.docsSync },
     }
   }
 
@@ -54,6 +60,7 @@ function deserializeSettings(payload: StoredSettingsPayload | null): UserSetting
     matching: payload.settings.matching,
     theme: payload.settings.theme,
     ai: payload.settings.ai,
+    docsSync: payload.settings.docsSync,
   })
 }
 

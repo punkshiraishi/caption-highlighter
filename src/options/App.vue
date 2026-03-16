@@ -8,6 +8,8 @@ import type { DictionaryImportStats } from '~/shared/utils/csv'
 import { buildDictionaryFromCsv, parseCsv } from '~/shared/utils/csv'
 import { loadSecrets, saveSecrets } from '~/shared/storage/secrets'
 import { GEMINI_FLASH_FIXED_MODEL } from '~/shared/ai/gemini'
+import type { GoogleDocsSyncStatus } from '~/shared/messages/google-docs-sync'
+import type { GoogleDocsTabSummary } from '~/shared/google-docs'
 
 const store = useSettingsStore()
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -34,6 +36,11 @@ const selection = reactive({
 })
 const stats = ref<DictionaryImportStats | null>(null)
 const importError = ref<string | null>(null)
+const openDocsTabs = ref<GoogleDocsTabSummary[]>([])
+const selectedDocsTabId = ref<number | null>(null)
+const docsStatus = ref<GoogleDocsSyncStatus | null>(null)
+const docsBusy = ref(false)
+const docsError = ref<string | null>(null)
 
 const hasPreview = computed(() => headers.value.length > 0 && csvRows.value.length > 0)
 
@@ -51,6 +58,8 @@ async function initialize() {
   const secrets = await loadSecrets()
   apiKey.value = secrets.geminiApiKey || ''
   await refreshPermission()
+  await refreshGoogleDocsTabs()
+  await refreshGoogleDocsStatus()
 }
 
 async function refreshPermission() {
@@ -182,6 +191,88 @@ async function handleReset() {
   if (window.confirm('辞書をすべて削除しますか？'))
     await store.clearDictionary()
 }
+
+async function refreshGoogleDocsTabs() {
+  const response = await browser.runtime.sendMessage({
+    type: 'gdocs-sync:list-tabs',
+  }) as { ok: boolean, tabs: GoogleDocsTabSummary[] }
+
+  openDocsTabs.value = response.tabs
+
+  if (selectedDocsTabId.value && openDocsTabs.value.some(tab => tab.tabId === selectedDocsTabId.value))
+    return
+
+  const boundTabId = docsStatus.value?.resolvedTabId ?? store.docsSync.binding?.tabId ?? null
+  selectedDocsTabId.value = openDocsTabs.value.find(tab => tab.tabId === boundTabId)?.tabId ?? openDocsTabs.value[0]?.tabId ?? null
+}
+
+async function refreshGoogleDocsStatus() {
+  const response = await browser.runtime.sendMessage({
+    type: 'gdocs-sync:get-status',
+  }) as { ok: boolean, status: GoogleDocsSyncStatus }
+
+  docsStatus.value = response.status
+}
+
+async function bindSelectedGoogleDoc() {
+  const tabId = Number(selectedDocsTabId.value)
+  if (!Number.isFinite(tabId))
+    return
+
+  docsBusy.value = true
+  docsError.value = null
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'gdocs-sync:bind-tab',
+      payload: { tabId },
+    }) as { ok: boolean, error?: string, status?: GoogleDocsSyncStatus }
+
+    if (!response.ok) {
+      docsError.value = response.error ?? 'Google Docs タブのバインドに失敗しました。'
+      return
+    }
+
+    await store.updateDocsSync({
+      enabled: true,
+      binding: response.status?.binding ?? store.docsSync.binding,
+    })
+    docsStatus.value = response.status ?? null
+  }
+  finally {
+    docsBusy.value = false
+  }
+}
+
+async function unbindGoogleDoc() {
+  docsBusy.value = true
+  docsError.value = null
+
+  try {
+    await browser.runtime.sendMessage({ type: 'gdocs-sync:unbind' })
+    await store.updateDocsSync({ enabled: false, binding: null })
+    await refreshGoogleDocsStatus()
+  }
+  finally {
+    docsBusy.value = false
+  }
+}
+
+async function toggleGoogleDocsSync(enabled: boolean) {
+  await store.updateDocsSync({ enabled })
+  await refreshGoogleDocsStatus()
+}
+
+const docsStatusLabel = computed(() => {
+  if (!docsStatus.value)
+    return '確認中'
+
+  if (docsStatus.value.state === 'ready')
+    return '接続中'
+  if (docsStatus.value.state === 'stale')
+    return '再バインドが必要'
+  return '未設定'
+})
 </script>
 
 <template>
@@ -318,6 +409,71 @@ async function handleReset() {
           </div>
           <pre v-if="flashTestResult" class="ai-preview">{{ flashTestResult }}</pre>
         </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header class="panel__header">
+        <div>
+          <h2>Google Docs 同期</h2>
+          <p class="panel__subtitle">
+            開いている Google Docs タブを 1 つ選び、構造化された議事メモをそのドキュメントへ追記ではなく全体置換で反映します。
+          </p>
+        </div>
+      </header>
+
+      <div class="ai-grid">
+        <label class="ai-field ai-field--wide">
+          <span>同期を有効化</span>
+          <label class="ai-check">
+            <input
+              type="checkbox"
+              :checked="store.docsSync.enabled"
+              @change="toggleGoogleDocsSync(($event.target as HTMLInputElement).checked)"
+            >
+            バインド済みの Google Docs タブに議事メモを同期する
+          </label>
+        </label>
+
+        <div class="ai-field ai-field--wide">
+          <span>接続状態</span>
+          <div class="ai-row">
+            <span class="ai-pill" :class="{ 'ai-pill--ok': docsStatus?.state === 'ready', 'ai-pill--ng': docsStatus?.state === 'stale' }">
+              {{ docsStatusLabel }}
+            </span>
+            <button class="button button--secondary" type="button" @click="refreshGoogleDocsStatus">
+              状態を更新
+            </button>
+          </div>
+          <span v-if="docsStatus?.binding" class="ai-help">
+            {{ docsStatus.binding.title }} / {{ docsStatus.binding.documentId }}
+          </span>
+          <span v-if="docsStatus?.lastError" class="ai-ng">{{ docsStatus.lastError }}</span>
+        </div>
+
+        <label class="ai-field ai-field--wide">
+          <span>開いている Google Docs タブ</span>
+          <div class="ai-row">
+            <select v-model="selectedDocsTabId">
+              <option :value="null">選択してください</option>
+              <option v-for="tab in openDocsTabs" :key="tab.tabId" :value="tab.tabId">
+                {{ tab.title }}{{ tab.active ? ' (active)' : '' }}
+              </option>
+            </select>
+            <button class="button button--secondary" type="button" @click="refreshGoogleDocsTabs">
+              一覧を更新
+            </button>
+            <button class="button" type="button" :disabled="docsBusy || !selectedDocsTabId" @click="bindSelectedGoogleDoc">
+              {{ docsBusy ? '処理中...' : 'このタブにバインド' }}
+            </button>
+            <button class="button button--secondary" type="button" :disabled="docsBusy || !store.docsSync.binding" @click="unbindGoogleDoc">
+              解除
+            </button>
+          </div>
+          <span class="ai-help">同期先のタブを閉じた場合は、ここで再度バインドしてください。</span>
+          <span v-if="!openDocsTabs.length" class="ai-help">開いている Google Docs タブが見つかりません。</span>
+          <span v-if="docsError" class="ai-ng">{{ docsError }}</span>
+        </label>
       </div>
     </section>
   </main>

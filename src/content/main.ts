@@ -7,6 +7,7 @@ import { TooltipController } from './highlight/tooltip'
 import { WhiteboardPanel, WhiteboardProcessor, getDefaultWhiteboardSettings, getGeminiNanoClient } from './whiteboard'
 import { type UserSettings, applyUserSettingsDefaults } from '~/shared/models/settings'
 import { loadUserSettings, observeSettings } from '~/shared/storage/settings'
+import browser from 'webextension-polyfill'
 
 /* eslint-disable no-console */
 
@@ -25,6 +26,8 @@ const whiteboardSettings = getDefaultWhiteboardSettings()
 const whiteboardProcessor = new WhiteboardProcessor(whiteboardSettings)
 const whiteboardPanel = new WhiteboardPanel(whiteboardSettings)
 let whiteboardWired = false
+let lastPushedMarkdown = ''
+let lastDocsBindingKey = ''
 
 const observer = new CaptionObserver({
   selectors: DEFAULT_CAPTION_SELECTORS,
@@ -96,6 +99,15 @@ async function initializeWhiteboard() {
 }
 
 function applySettings(settings: UserSettings) {
+  const nextBindingKey = settings.docsSync.binding
+    ? `${settings.docsSync.binding.documentId}:${settings.docsSync.binding.tabId}:${Number(settings.docsSync.enabled)}`
+    : ''
+
+  if (nextBindingKey !== lastDocsBindingKey) {
+    lastDocsBindingKey = nextBindingKey
+    lastPushedMarkdown = ''
+  }
+
   currentSettings = settings
   tooltip.updateTheme(settings.theme)
   applyThemeVariables(settings.theme)
@@ -106,6 +118,13 @@ function applySettings(settings: UserSettings) {
   // ホワイトボードの要約プロバイダを反映（変更時は再初期化）
   whiteboardPanel.setProvider(settings.ai.whiteboardProvider)
   whiteboardProcessor.setAiSettings(settings.ai)
+
+  if (settings.docsSync.enabled && settings.docsSync.binding && whiteboardProcessor.getState().markdownContent) {
+    void syncWhiteboardToGoogleDocs(
+      whiteboardProcessor.getState().markdownContent,
+      whiteboardProcessor.getState().lastUpdated,
+    )
+  }
 }
 
 observeSettings((next) => {
@@ -119,8 +138,34 @@ observeSettings((next) => {
 if (!whiteboardWired) {
   whiteboardProcessor.onUpdate((state) => {
     whiteboardPanel.updateState(state)
+    void syncWhiteboardToGoogleDocs(state.markdownContent, state.lastUpdated)
   })
   whiteboardWired = true
 }
 
 bootstrap()
+
+async function syncWhiteboardToGoogleDocs(markdownContent: string, lastUpdated: number) {
+  if (!currentSettings.docsSync.enabled || !currentSettings.docsSync.binding)
+    return
+
+  if (markdownContent === lastPushedMarkdown)
+    return
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'gdocs-sync:push-update',
+      payload: { markdownContent, lastUpdated },
+    }) as { ok?: boolean, error?: string } | undefined
+
+    if (!response?.ok) {
+      console.warn('[caption-highlighter] Google Docs sync rejected update', response?.error)
+      return
+    }
+
+    lastPushedMarkdown = markdownContent
+  }
+  catch (error) {
+    console.warn('[caption-highlighter] Failed to sync whiteboard to Google Docs', error)
+  }
+}
