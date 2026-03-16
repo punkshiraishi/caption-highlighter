@@ -69,11 +69,6 @@ function sendDebuggerCommand<T = unknown>(tabId: number, method: string, command
 
 async function applyMarkdownWithDebugger(tabId: number, markdownContent: string): Promise<void> {
   const normalized = markdownContent.trim().length > 0 ? markdownContent : ' '
-  await browser.tabs.update(tabId, { active: true })
-
-  const tab = await browser.tabs.get(tabId)
-  if (typeof tab.windowId === 'number')
-    await browser.windows.update(tab.windowId, { focused: true })
 
   await attachDebugger(tabId)
   try {
