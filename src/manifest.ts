@@ -39,6 +39,7 @@ export async function getManifest() {
     permissions: [
       'storage',
       'tabs',
+      'debugger',
     ],
     host_permissions: [
       'https://meet.google.com/*',

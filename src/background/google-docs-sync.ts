@@ -2,7 +2,7 @@ import browser from 'webextension-polyfill'
 import type { Tabs } from 'webextension-polyfill'
 import type { GoogleDocsSyncBindResponse, GoogleDocsSyncPushResponse, GoogleDocsSyncStatus } from '~/shared/messages/google-docs-sync'
 import type { GoogleDocsBinding, UserSettings } from '~/shared/models/settings'
-import { buildGoogleDocsDocumentUrlPattern, extractGoogleDocsDocumentId, isGoogleDocsDocumentUrl, type GoogleDocsTabSummary } from '~/shared/google-docs'
+import { type GoogleDocsTabSummary, buildGoogleDocsDocumentUrlPattern, extractGoogleDocsDocumentId, isGoogleDocsDocumentUrl } from '~/shared/google-docs'
 import { loadUserSettings, saveUserSettings } from '~/shared/storage/settings'
 
 interface DocsSyncRuntimeState {
@@ -10,6 +10,109 @@ interface DocsSyncRuntimeState {
   lastSuccessAt: number | null
   lastError: string | null
   resolvedTabId: number | null
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function getChromeRuntimeLastError(): { message?: string } | null {
+  return (globalThis as typeof globalThis & { chrome?: { runtime?: { lastError?: { message?: string } } } }).chrome?.runtime?.lastError ?? null
+}
+
+function getDebuggerApi(): {
+  attach: (target: { tabId: number }, version: string, callback: () => void) => void
+  detach: (target: { tabId: number }, callback: () => void) => void
+  sendCommand: (target: { tabId: number }, method: string, commandParams: object | undefined, callback: (result: unknown) => void) => void
+} {
+  const debuggerApi = (globalThis as typeof globalThis & { chrome?: { debugger?: {
+    attach: (target: { tabId: number }, version: string, callback: () => void) => void
+    detach: (target: { tabId: number }, callback: () => void) => void
+    sendCommand: (target: { tabId: number }, method: string, commandParams: object | undefined, callback: (result: unknown) => void) => void
+  } } }).chrome?.debugger
+  if (!debuggerApi)
+    throw new Error('chrome.debugger API is unavailable.')
+  return debuggerApi
+}
+
+function attachDebugger(tabId: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    getDebuggerApi().attach({ tabId }, '1.3', () => {
+      const lastError = getChromeRuntimeLastError()
+      if (lastError && !lastError.message?.includes('Another debugger is already attached')) {
+        reject(new Error(lastError.message))
+        return
+      }
+      resolve()
+    })
+  })
+}
+
+function detachDebugger(tabId: number): Promise<void> {
+  return new Promise((resolve) => {
+    getDebuggerApi().detach({ tabId }, () => resolve())
+  })
+}
+
+function sendDebuggerCommand<T = unknown>(tabId: number, method: string, commandParams?: object): Promise<T> {
+  return new Promise((resolve, reject) => {
+    getDebuggerApi().sendCommand({ tabId }, method, commandParams, (result: unknown) => {
+      const lastError = getChromeRuntimeLastError()
+      if (lastError) {
+        reject(new Error(lastError.message))
+        return
+      }
+      resolve(result as T)
+    })
+  })
+}
+
+async function applyMarkdownWithDebugger(tabId: number, markdownContent: string): Promise<void> {
+  const normalized = markdownContent.trim().length > 0 ? markdownContent : ' '
+  await browser.tabs.update(tabId, { active: true })
+
+  const tab = await browser.tabs.get(tabId)
+  if (typeof tab.windowId === 'number')
+    await browser.windows.update(tab.windowId, { focused: true })
+
+  await attachDebugger(tabId)
+  try {
+    await sendDebuggerCommand(tabId, 'Runtime.enable')
+    await sendDebuggerCommand(tabId, 'Page.enable')
+
+    await sendDebuggerCommand(tabId, 'Runtime.evaluate', {
+      expression: `(() => {
+        const frame = document.querySelector('iframe.docs-texteventtarget-iframe');
+        const doc = frame && frame.contentDocument;
+        const target = doc && doc.querySelector('[contenteditable="true"]');
+        if (!doc || !target) return false;
+        target.focus();
+        return true;
+      })()`,
+      awaitPromise: false,
+      returnByValue: true,
+    })
+
+    await sleep(150)
+
+    const metaModifier = 4
+    await sendDebuggerCommand(tabId, 'Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Meta', code: 'MetaLeft', windowsVirtualKeyCode: 91, nativeVirtualKeyCode: 91, modifiers: metaModifier })
+    await sendDebuggerCommand(tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: metaModifier })
+    await sendDebuggerCommand(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: metaModifier })
+    await sendDebuggerCommand(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'Meta', code: 'MetaLeft', windowsVirtualKeyCode: 91, nativeVirtualKeyCode: 91 })
+
+    await sleep(80)
+
+    await sendDebuggerCommand(tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 })
+    await sendDebuggerCommand(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 })
+
+    await sleep(80)
+
+    await sendDebuggerCommand(tabId, 'Input.insertText', { text: normalized })
+  }
+  finally {
+    await detachDebugger(tabId)
+  }
 }
 
 const runtimeState: DocsSyncRuntimeState = {
@@ -166,22 +269,7 @@ export async function handlePushGoogleDocsUpdate(markdownContent: string): Promi
   }
 
   try {
-    const response = await browser.tabs.sendMessage(targetTab.id, {
-      type: 'gdocs-sync:apply-markdown',
-      payload: {
-        markdownContent,
-        documentId: settings.docsSync.binding.documentId,
-      },
-    }) as { ok?: boolean, error?: string } | undefined
-
-    if (!response?.ok) {
-      runtimeState.lastError = response?.error ?? 'Google Docs tab did not accept the update.'
-      return {
-        ok: false,
-        status: await buildStatus(settings),
-        error: runtimeState.lastError,
-      }
-    }
+    await applyMarkdownWithDebugger(targetTab.id, markdownContent)
 
     runtimeState.lastSuccessAt = Date.now()
     runtimeState.lastError = null
