@@ -26,8 +26,8 @@ function findEditorContext(): { document: Document, target: HTMLElement | HTMLTe
   }
 
   const pageCandidates = [
-    document.activeElement,
     document.querySelector('[contenteditable="true"]'),
+    document.activeElement,
     document.body,
   ]
 

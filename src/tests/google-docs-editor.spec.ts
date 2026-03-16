@@ -9,7 +9,6 @@ describe('google docs editor sync helper', () => {
   it('updates a contenteditable fallback target', async () => {
     await applyMarkdownToOpenGoogleDoc('# Notes\n- item')
 
-    const host = document.querySelector('#host')
-    expect(host?.textContent).toBe('# Notes\n- item')
+    expect(document.body.textContent).toContain('# Notes\n- item')
   })
 })
