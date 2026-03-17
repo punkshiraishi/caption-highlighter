@@ -152,9 +152,7 @@ export class WhiteboardPanel {
         </div>
       </div>
       <div class="whiteboard-panel__footer">
-        <div class="whiteboard-panel__footer-main">
-          <span class="whiteboard-panel__footer-info">AI が会議メモを整理します</span>
-        </div>
+        <div class="whiteboard-panel__footer-main"></div>
         <div class="whiteboard-panel__docs-sync">
           <div class="whiteboard-panel__docs-sync-header">
             <span>Google Docs 同期</span>

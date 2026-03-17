@@ -7,8 +7,6 @@ import { useSettingsStore } from './stores/settings'
 import type { DictionaryImportStats } from '~/shared/utils/csv'
 import { buildDictionaryFromCsv, parseCsv } from '~/shared/utils/csv'
 import { loadSecrets, saveSecrets } from '~/shared/storage/secrets'
-import type { GoogleDocsSyncStatus } from '~/shared/messages/google-docs-sync'
-import type { GoogleDocsTabSummary } from '~/shared/google-docs'
 
 const store = useSettingsStore()
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -19,8 +17,6 @@ const filter = computed({
 
 const apiKey = ref('')
 const permGranted = ref<boolean | null>(null)
-const aiTestResult = ref<string | null>(null)
-const aiTestError = ref<string | null>(null)
 const savingKey = ref(false)
 const flashOrigins = ['https://generativelanguage.googleapis.com/*']
 
@@ -33,11 +29,6 @@ const selection = reactive({
 })
 const stats = ref<DictionaryImportStats | null>(null)
 const importError = ref<string | null>(null)
-const openDocsTabs = ref<GoogleDocsTabSummary[]>([])
-const selectedDocsTabId = ref<number | null>(null)
-const docsStatus = ref<GoogleDocsSyncStatus | null>(null)
-const docsBusy = ref(false)
-const docsError = ref<string | null>(null)
 
 const hasPreview = computed(() => headers.value.length > 0 && csvRows.value.length > 0)
 const hasApiKey = computed(() => apiKey.value.trim().length > 0)
@@ -51,18 +42,8 @@ const aiChecklist = computed(() => [
 ])
 const aiCompletedSteps = computed(() => aiChecklist.value.filter(item => item.done).length)
 const canTestAi = computed(() => aiReady.value && !savingKey.value)
-const docsConnected = computed(() => store.docsSync.enabled && docsStatus.value?.state === 'ready')
-const docsNeedsAttention = computed(() => store.docsSync.enabled && docsStatus.value?.state === 'stale')
-const docsTargetLabel = computed(() => docsStatus.value?.binding?.title ?? '未選択')
-const totalSetupSteps = 2
-const completedSetupSteps = computed(() => {
-  let count = 0
-  if (aiReady.value)
-    count += 1
-  if (docsConnected.value)
-    count += 1
-  return count
-})
+const totalSetupSteps = 1
+const completedSetupSteps = computed(() => aiReady.value ? 1 : 0)
 
 watch(() => [selection.term, selection.definition, selection.alias], () => {
   importError.value = null
@@ -78,8 +59,6 @@ async function initialize() {
   const secrets = await loadSecrets()
   apiKey.value = secrets.geminiApiKey || ''
   await refreshPermission()
-  await refreshGoogleDocsTabs()
-  await refreshGoogleDocsStatus()
 }
 
 async function refreshPermission() {
@@ -87,16 +66,12 @@ async function refreshPermission() {
 }
 
 async function requestPermission() {
-  aiTestResult.value = null
-  aiTestError.value = null
   const ok = await browser.permissions.request({ origins: flashOrigins })
   permGranted.value = ok
 }
 
 async function persistApiKey() {
   savingKey.value = true
-  aiTestResult.value = null
-  aiTestError.value = null
   try {
     await saveSecrets({ geminiApiKey: apiKey.value.trim() })
   }
@@ -106,22 +81,13 @@ async function persistApiKey() {
 }
 
 async function testAiConnection() {
-  aiTestResult.value = null
-  aiTestError.value = null
   try {
-    const resp = await browser.runtime.sendMessage({
+    await browser.runtime.sendMessage({
       type: 'ai:flash:test',
     }) as { ok: boolean, text?: string, error?: string }
-
-    if (!resp.ok) {
-      aiTestError.value = resp.error || '接続テストに失敗しました。'
-      return
-    }
-
-    aiTestResult.value = resp.text || '接続できました。'
   }
-  catch (error) {
-    aiTestError.value = error instanceof Error ? error.message : String(error)
+  catch {
+    // options 画面では詳細レスポンスを表示しない
   }
 }
 
@@ -213,89 +179,6 @@ async function handleReset() {
     await store.clearDictionary()
 }
 
-async function refreshGoogleDocsTabs() {
-  const response = await browser.runtime.sendMessage({
-    type: 'gdocs-sync:list-tabs',
-  }) as { ok: boolean, tabs: GoogleDocsTabSummary[] }
-
-  openDocsTabs.value = response.tabs
-
-  if (selectedDocsTabId.value && openDocsTabs.value.some(tab => tab.tabId === selectedDocsTabId.value))
-    return
-
-  const boundTabId = docsStatus.value?.resolvedTabId ?? store.docsSync.binding?.tabId ?? null
-  selectedDocsTabId.value = openDocsTabs.value.find(tab => tab.tabId === boundTabId)?.tabId ?? openDocsTabs.value[0]?.tabId ?? null
-}
-
-async function refreshGoogleDocsStatus() {
-  const response = await browser.runtime.sendMessage({
-    type: 'gdocs-sync:get-status',
-  }) as { ok: boolean, status: GoogleDocsSyncStatus }
-
-  docsStatus.value = response.status
-}
-
-async function bindSelectedGoogleDoc() {
-  const tabId = Number(selectedDocsTabId.value)
-  if (!Number.isFinite(tabId))
-    return
-
-  docsBusy.value = true
-  docsError.value = null
-
-  try {
-    const response = await browser.runtime.sendMessage({
-      type: 'gdocs-sync:bind-tab',
-      payload: { tabId },
-    }) as { ok: boolean, error?: string, status?: GoogleDocsSyncStatus }
-
-    if (!response.ok) {
-      docsError.value = response.error ?? 'Google Docs を接続できませんでした。'
-      return
-    }
-
-    await store.updateDocsSync({
-      enabled: true,
-      binding: response.status?.binding ?? store.docsSync.binding,
-    })
-    docsStatus.value = response.status ?? null
-  }
-  finally {
-    docsBusy.value = false
-  }
-}
-
-async function unbindGoogleDoc() {
-  docsBusy.value = true
-  docsError.value = null
-
-  try {
-    await browser.runtime.sendMessage({ type: 'gdocs-sync:unbind' })
-    await store.updateDocsSync({ enabled: false, binding: null })
-    await refreshGoogleDocsStatus()
-  }
-  finally {
-    docsBusy.value = false
-  }
-}
-
-async function toggleGoogleDocsSync(enabled: boolean) {
-  await store.updateDocsSync({ enabled })
-  await refreshGoogleDocsStatus()
-}
-
-const docsStatusLabel = computed(() => {
-  if (!store.docsSync.enabled)
-    return 'オフ'
-  if (!docsStatus.value)
-    return '確認中'
-  if (docsStatus.value.state === 'ready')
-    return '同期中'
-  if (docsStatus.value.state === 'stale')
-    return '再接続が必要'
-  return '未設定'
-})
-
 const setupHeadline = computed(() => {
   if (completedSetupSteps.value === totalSetupSteps)
     return '準備完了'
@@ -306,10 +189,8 @@ const setupHeadline = computed(() => {
 
 const setupMessage = computed(() => {
   if (completedSetupSteps.value === totalSetupSteps)
-    return 'Google Meet で字幕を AI が整理し、選んだ Google Docs に自動で反映できます。'
-  if (!aiReady.value)
-    return 'まずは AI 会議メモの準備を完了してください。'
-  return '最後に同期先の Google Docs を選ぶと、会議メモを自動反映できます。'
+    return 'Google Meet で会議メモを使う準備ができています。'
+  return 'まずは API key と権限の設定を完了してください。'
 })
 </script>
 
@@ -347,15 +228,15 @@ const setupMessage = computed(() => {
       </article>
 
       <article class="summary-card">
-        <span class="summary-card__label">Google Docs 同期</span>
-        <strong class="summary-card__value">{{ docsStatusLabel }}</strong>
-        <span class="summary-card__meta">{{ docsTargetLabel }}</span>
-      </article>
-
-      <article class="summary-card">
         <span class="summary-card__label">辞書</span>
         <strong class="summary-card__value">{{ store.filteredEntries.length }} 件</strong>
         <span class="summary-card__meta">Meet の字幕で強調表示</span>
+      </article>
+
+      <article class="summary-card">
+        <span class="summary-card__label">Google Docs 同期</span>
+        <strong class="summary-card__value">Meet 画面で選択</strong>
+        <span class="summary-card__meta">保存先は Meet 側のホワイトボードから切り替えます</span>
       </article>
     </section>
 
@@ -422,10 +303,7 @@ const setupMessage = computed(() => {
             <button class="button" type="button" :disabled="!canTestAi" @click="testAiConnection">
               接続を確認する
             </button>
-            <span v-if="aiTestResult" class="feedback feedback--ok">接続できました</span>
-            <span v-if="aiTestError" class="feedback feedback--warn">{{ aiTestError }}</span>
           </div>
-          <pre v-if="aiTestResult" class="result-preview">{{ aiTestResult }}</pre>
         </div>
       </div>
 
@@ -435,83 +313,6 @@ const setupMessage = computed(() => {
           <span>{{ item.label }}</span>
         </li>
       </ul>
-    </section>
-
-    <section class="setup-card">
-      <header class="setup-card__header">
-        <div>
-          <p class="setup-card__step">
-            STEP 2
-          </p>
-          <h2>会議メモの保存先を選ぶ</h2>
-          <p class="setup-card__text">
-            先に Google Docs をブラウザで開いてから、ここで同期先を選びます。Meet 画面側の Docs 選択 UI はそのまま使えます。
-          </p>
-        </div>
-        <span class="status-pill" :class="{ 'status-pill--ok': docsConnected, 'status-pill--warn': docsNeedsAttention }">
-          {{ docsStatusLabel }}
-        </span>
-      </header>
-
-      <div class="setup-grid">
-        <div class="field-card field-card--wide">
-          <span class="field-card__label">同期をオンにする</span>
-          <label class="check-row">
-            <input
-              type="checkbox"
-              :checked="store.docsSync.enabled"
-              @change="toggleGoogleDocsSync(($event.target as HTMLInputElement).checked)"
-            >
-            選んだ Google Docs に会議メモを自動で反映する
-          </label>
-        </div>
-
-        <div class="field-card field-card--wide">
-          <span class="field-card__label">今の状態</span>
-          <div class="field-row">
-            <span class="status-chip" :class="{ 'status-chip--ok': docsConnected, 'status-chip--warn': docsNeedsAttention }">
-              {{ docsStatusLabel }}
-            </span>
-            <button class="button button--ghost" type="button" @click="refreshGoogleDocsStatus">
-              状態を更新
-            </button>
-          </div>
-          <p v-if="docsStatus?.binding" class="field-note">
-            接続先: {{ docsStatus.binding.title }} / {{ docsStatus.binding.documentId }}
-          </p>
-          <p v-if="docsStatus?.lastError" class="feedback feedback--warn">
-            {{ docsStatus.lastError }}
-          </p>
-        </div>
-
-        <label class="field-card field-card--wide">
-          <span class="field-card__label">Google Docs を選ぶ</span>
-          <span class="field-card__help">開いている Google Docs だけ表示されます。</span>
-          <div class="field-row field-row--stretch">
-            <select v-model="selectedDocsTabId">
-              <option :value="null">選択してください</option>
-              <option v-for="tab in openDocsTabs" :key="tab.tabId" :value="tab.tabId">
-                {{ tab.title }}{{ tab.active ? ' (active)' : '' }}
-              </option>
-            </select>
-            <button class="button button--ghost" type="button" @click="refreshGoogleDocsTabs">
-              一覧を更新
-            </button>
-            <button class="button" type="button" :disabled="docsBusy || !selectedDocsTabId" @click="bindSelectedGoogleDoc">
-              {{ docsBusy ? '処理中...' : 'この Docs を使う' }}
-            </button>
-            <button class="button button--secondary" type="button" :disabled="docsBusy || !store.docsSync.binding" @click="unbindGoogleDoc">
-              解除
-            </button>
-          </div>
-          <p v-if="!openDocsTabs.length" class="field-note">
-            開いている Google Docs が見つかりません。Google Docs を 1 つ開いてから一覧を更新してください。
-          </p>
-          <p v-if="docsError" class="feedback feedback--warn">
-            {{ docsError }}
-          </p>
-        </label>
-      </div>
     </section>
 
     <section class="setup-card">
