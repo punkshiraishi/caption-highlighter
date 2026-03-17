@@ -283,8 +283,9 @@ export class WhiteboardPanel {
   }
 
   private handleSampleInject(): void {
-    if (!__DEV__)
+    if (!this.debugRowEl || this.debugRowEl.style.display === 'none')
       return
+
     injectSampleCaptions()
     // サンプル注入後、即座に処理を開始（バッファ待ちをスキップ）
     this.sampleInjectCallback?.()
