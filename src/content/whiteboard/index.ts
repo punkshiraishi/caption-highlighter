@@ -11,7 +11,6 @@ export type {
   WhiteboardItem,
   WhiteboardState,
   WhiteboardSettings,
-  GeminiNanoAvailability,
 } from '~/shared/models/whiteboard'
 
 export {
@@ -19,5 +18,4 @@ export {
   createEmptyWhiteboardState,
 } from '~/shared/models/whiteboard'
 
-export { getGeminiNanoClient } from '../ai/gemini-nano'
 export { getGeminiFlashClient } from '../ai/gemini-flash'

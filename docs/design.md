@@ -5,7 +5,7 @@
 - **主要モジュール**:
   - `content-script`: 字幕監視、ハイライト描画、ポップアップ制御。
   - `background`: 拡張全体の設定・辞書データの永続化、外部API連携（AI要約/将来のサブスク）の中継ポイント。
-  - `options-ui`: 辞書管理、マッチング設定、テーマ設定を提供する Vue アプリ。
+  - `options-ui`: エンドユーザー向けのセットアップ導線、辞書管理、Google Docs 同期設定を提供する Vue アプリ。
   - `shared`: 辞書モデル、設定モデル、マッチングロジック、ストレージアダプター等の共通ユーティリティ。
 - **データフロー**: オプション UI が辞書や設定を更新→バックグラウンドが `chrome.storage.local` に保存→コンテンツスクリプトは storage change イベントまたはメッセージで最新データを取得→字幕解析時に辞書を用いてハイライト・ポップアップを描画。
 
@@ -22,15 +22,13 @@
 - **AI 要約（ホワイトボード）**
   - 目的: 字幕ストリームを一定間隔でバッファし、会議メモとして構造化表示する。
   - 方針:
-    - 既定はローカル LLM（Gemini Nano）で完結。
-    - 外部 LLM（Gemini Flash）は beta とし、ユーザーの明示同意と設定がある場合のみ有効化。
+    - クラウド AI のみを利用する。
+    - ユーザーの明示同意、API Key 設定、拡張権限がそろったときだけ有効化する。
   - 実装コンポーネント:
-    - `Summarizer` インターフェイス（content 内のホワイトボード処理から依存）
-      - `NanoSummarizer`: main world ブリッジ経由で Built-in AI(LanguageModel) を使用
-      - `FlashSummarizer`: content → background へ要約リクエストを送り、background が外部APIへ `fetch`
+    - `FlashSummarizer`: content → background へ要約リクエストを送り、background が外部APIへ `fetch`
     - `SecretsStore`: API Key 等の機密情報は `UserSettings` と分離したストレージキーに保存し、原則 background/options のみが参照する
   - 権限:
-    - 外部APIドメインへのアクセスは `optional_host_permissions` とし、Flash 有効化時にユーザーへ権限要求する
+    - 外部APIドメインへのアクセスは `optional_host_permissions` とし、初回セットアップ時にユーザーへ権限要求する
 - **オプションページ** (`options/main.ts`)
   - Vue 3 アプリ。Pinia ストアで辞書・設定を管理。
   - コンポーネント構成: `DictionaryTable`, `ImportDialog`, `MatchingSettingsForm`, `ThemeSettingsForm`, `StorageActions`。
@@ -78,11 +76,9 @@
     dictionary: DictionaryState
     matching: MatchingSettings
     theme: ThemeSettings
-    // vNext: AI 要約（非機密）
     ai?: {
-      whiteboardProvider: 'nano' | 'flash' // 初期スコープは2択（autoは将来）
-      allowSendCaptionsToCloud: boolean // 外部送信の同意（Flash有効化に必須）
-      flashModel?: string // 例: Gemini Flash。将来の差し替えに備えて保持
+      allowSendCaptionsToCloud: boolean
+      flashModel?: string
     }
   }
   ```
@@ -112,13 +108,10 @@
   - Options UI がストレージを更新すると `chrome.storage.onChanged` とメッセージングでコンテンツスクリプトへ最新設定を push。
   - コンテンツスクリプトは設定を受信し、マッチャー・テーマを再適用。
 
-- **ホワイトボード要約（Gemini Nano / Flash 切替）**
+- **ホワイトボード要約（クラウド AI）**
   1. content-script が字幕をバッファし、一定間隔で要約処理を実行。
-  2. `whiteboardProvider` が `nano` の場合:
-     - main world ブリッジで LanguageModel API の可用性を確認し、利用可能なら `prompt` を実行。
-  3. `whiteboardProvider` が `flash` の場合（beta）:
-     - Options で `allowSendCaptionsToCloud=true`（同意）かつ API Key 設定済み、かつ optional host permission 許可済みであることを前提にする。
-     - content → background に `ai:flash:summarize` を送信し、background が外部APIへ `fetch` して結果を返す。
+  2. Options で `allowSendCaptionsToCloud=true`（同意）かつ API Key 設定済み、かつ optional host permission 許可済みであることを前提にする。
+  3. content → background に `ai:flash:summarize` を送信し、background が外部APIへ `fetch` して結果を返す。
   4. エラー時は UI（ホワイトボードパネル）に理由（未同意/未設定/権限/通信失敗 等）を表示する。
 
 ## 5. ストレージ & 永続化

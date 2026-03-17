@@ -1,9 +1,4 @@
 import browser from 'webextension-polyfill'
-import { ensureSettingsInitialized, loadUserSettings, saveUserSettings } from '~/shared/storage/settings'
-import type { UserSettings } from '~/shared/models/settings'
-import { loadSecrets } from '~/shared/storage/secrets'
-import { GEMINI_FLASH_FIXED_MODEL, GEMINI_IMAGE_MODEL } from '~/shared/ai/gemini'
-import { pickPreferredImageModel } from '~/shared/ai/gemini-models'
 import {
   handleBindGoogleDocsTab,
   handleGetGoogleDocsStatus,
@@ -11,6 +6,11 @@ import {
   handlePushGoogleDocsUpdate,
   handleUnbindGoogleDocsTab,
 } from './google-docs-sync'
+import { ensureSettingsInitialized, loadUserSettings, saveUserSettings } from '~/shared/storage/settings'
+import type { UserSettings } from '~/shared/models/settings'
+import { loadSecrets } from '~/shared/storage/secrets'
+import { GEMINI_FLASH_FIXED_MODEL, GEMINI_IMAGE_MODEL } from '~/shared/ai/gemini'
+import { pickPreferredImageModel } from '~/shared/ai/gemini-models'
 
 if (import.meta.hot) {
   // @ts-expect-error background HMR
@@ -61,7 +61,7 @@ browser.runtime.onMessage.addListener(async (message: unknown) => {
 
     return {
       ok: true,
-      enabled: settings.ai.whiteboardProvider === 'flash',
+      enabled: true,
       allowSendCaptionsToCloud: settings.ai.allowSendCaptionsToCloud,
       hasApiKey: Boolean(secrets.geminiApiKey?.trim()),
       hasPermission: hasPerm,
@@ -74,16 +74,16 @@ browser.runtime.onMessage.addListener(async (message: unknown) => {
     const secrets = await loadSecrets()
 
     if (!settings.ai.allowSendCaptionsToCloud)
-      return { ok: false, error: '外部送信の同意が必要です（Optionsで有効化してください）' }
+      return { ok: false, error: '設定画面で字幕を Google AI に送ることへ同意してください。' }
 
     const apiKey = secrets.geminiApiKey?.trim()
     if (!apiKey)
-      return { ok: false, error: 'API Key が未設定です（Optionsで設定してください）' }
+      return { ok: false, error: '設定画面で Google AI Studio key を保存してください。' }
 
     const origins = ['https://generativelanguage.googleapis.com/*']
     const hasPerm = await browser.permissions.contains({ origins })
     if (!hasPerm)
-      return { ok: false, error: '権限がありません（Optionsで権限を許可してください）' }
+      return { ok: false, error: '設定画面で Google AI への接続を許可してください。' }
 
     const model = GEMINI_FLASH_FIXED_MODEL
     const prompt = 'hello'
@@ -95,19 +95,17 @@ browser.runtime.onMessage.addListener(async (message: unknown) => {
     const settings = await loadUserSettings()
     const secrets = await loadSecrets()
 
-    if (settings.ai.whiteboardProvider !== 'flash')
-      return { ok: false, error: 'Flash が無効です（設定を確認してください）' }
     if (!settings.ai.allowSendCaptionsToCloud)
-      return { ok: false, error: '外部送信の同意が必要です（Optionsで有効化してください）' }
+      return { ok: false, error: '設定画面で字幕を Google AI に送ることへ同意してください。' }
 
     const apiKey = secrets.geminiApiKey?.trim()
     if (!apiKey)
-      return { ok: false, error: 'API Key が未設定です（Optionsで設定してください）' }
+      return { ok: false, error: '設定画面で Google AI Studio key を保存してください。' }
 
     const origins = ['https://generativelanguage.googleapis.com/*']
     const hasPerm = await browser.permissions.contains({ origins })
     if (!hasPerm)
-      return { ok: false, error: '権限がありません（Optionsで権限を許可してください）' }
+      return { ok: false, error: '設定画面で Google AI への接続を許可してください。' }
 
     const model = GEMINI_FLASH_FIXED_MODEL
     const text = await callGeminiFlash({ apiKey, model, prompt: msg.payload.prompt })
@@ -119,16 +117,16 @@ browser.runtime.onMessage.addListener(async (message: unknown) => {
     const secrets = await loadSecrets()
 
     if (!settings.ai.allowSendCaptionsToCloud)
-      return { ok: false, error: '外部送信の同意が必要です（Optionsで有効化してください）' }
+      return { ok: false, error: '設定画面で字幕を Google AI に送ることへ同意してください。' }
 
     const apiKey = secrets.geminiApiKey?.trim()
     if (!apiKey)
-      return { ok: false, error: 'API Key が未設定です（Optionsで設定してください）' }
+      return { ok: false, error: '設定画面で Google AI Studio key を保存してください。' }
 
     const origins = ['https://generativelanguage.googleapis.com/*']
     const hasPerm = await browser.permissions.contains({ origins })
     if (!hasPerm)
-      return { ok: false, error: '権限がありません（Optionsで権限を許可してください）' }
+      return { ok: false, error: '設定画面で Google AI への接続を許可してください。' }
 
     const model = GEMINI_IMAGE_MODEL
     const image = await callGeminiImage({ apiKey, model, prompt: msg.payload.prompt })

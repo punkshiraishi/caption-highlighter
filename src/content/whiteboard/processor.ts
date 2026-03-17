@@ -1,11 +1,9 @@
 /**
  * ホワイトボードプロセッサ
- * キャプションをLLMで処理し、ホワイトボードの状態を管理する
+ * キャプションをクラウドAIで処理し、ホワイトボードの状態を管理する
  */
 
 /* eslint-disable no-console */
-
-import { getGeminiNanoClient } from '../ai/gemini-nano'
 import { getGeminiFlashClient } from '../ai/gemini-flash'
 import { CaptionBuffer } from './caption-buffer'
 import type { WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
@@ -36,19 +34,12 @@ export class WhiteboardProcessor {
    * AI設定を更新（provider切替など）
    */
   setAiSettings(ai: AiSettings): void {
-    const prev = this.ai?.whiteboardProvider
     this.ai = ai
-
-    // provider切替時は初期化状態をリセット
-    if (prev && prev !== ai.whiteboardProvider) {
-      this.isInitialized = false
-      if (prev === 'nano')
-        getGeminiNanoClient().destroy()
-    }
+    this.isInitialized = false
   }
 
   /**
-   * 初期化（providerに応じて準備）
+   * 初期化
    */
   async initialize(): Promise<boolean> {
     if (!this.ai) {
@@ -57,22 +48,6 @@ export class WhiteboardProcessor {
       return false
     }
 
-    if (this.ai.whiteboardProvider === 'nano') {
-      const client = getGeminiNanoClient()
-      const availability = await client.checkAvailability()
-
-      if (availability === 'available') {
-        const sessionCreated = await client.createSession()
-        this.isInitialized = sessionCreated
-        return sessionCreated
-      }
-
-      console.warn('[Whiteboard] Gemini Nano not available:', availability)
-      this.isInitialized = false
-      return false
-    }
-
-    // flash
     const flash = getGeminiFlashClient()
     const config = await flash.getConfig()
     const ok = config.allowSendCaptionsToCloud && config.hasApiKey && config.hasPermission
@@ -144,10 +119,7 @@ export class WhiteboardProcessor {
     this.updateState({ isProcessing: true })
 
     try {
-      // 前回の要約を含めてLLMに送信
-      const result = this.ai.whiteboardProvider === 'flash'
-        ? await getGeminiFlashClient().summarize(text, this.state.markdownContent, this.ai.flashModel)
-        : await getGeminiNanoClient().summarize(text, this.state.markdownContent)
+      const result = await getGeminiFlashClient().summarize(text, this.state.markdownContent, this.ai.flashModel)
 
       if (result.success && result.markdownContent) {
         this.updateState({
@@ -219,6 +191,5 @@ export class WhiteboardProcessor {
   destroy(): void {
     this.buffer.destroy()
     this.updateCallbacks.clear()
-    getGeminiNanoClient().destroy()
   }
 }

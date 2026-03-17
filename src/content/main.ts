@@ -5,11 +5,9 @@ import browser from 'webextension-polyfill'
 import { CaptionObserver, DEFAULT_CAPTION_SELECTORS } from './dom/caption-observer'
 import { CaptionHighlighter, applyThemeVariables } from './highlight/highlighter'
 import { TooltipController } from './highlight/tooltip'
-import { WhiteboardPanel, WhiteboardProcessor, getDefaultWhiteboardSettings, getGeminiNanoClient } from './whiteboard'
+import { WhiteboardPanel, WhiteboardProcessor, getDefaultWhiteboardSettings } from './whiteboard'
 import { type UserSettings, applyUserSettingsDefaults } from '~/shared/models/settings'
 import { loadUserSettings, observeSettings } from '~/shared/storage/settings'
-
-/* eslint-disable no-console */
 
 let currentSettings: UserSettings = applyUserSettingsDefaults({})
 
@@ -65,37 +63,15 @@ async function initializeWhiteboard() {
   // サンプル字幕注入後、即座にLLM処理を開始（バッファ待ちをスキップ）
   whiteboardPanel.onSampleInject(() => whiteboardProcessor.forceProcess())
 
-  whiteboardPanel.setProvider(currentSettings.ai.whiteboardProvider)
   whiteboardProcessor.setAiSettings(currentSettings.ai)
-
-  if (currentSettings.ai.whiteboardProvider === 'nano') {
-    // Gemini Nanoの可用性をチェック
-    const client = getGeminiNanoClient()
-    const availability = await client.checkAvailability()
-    whiteboardPanel.setAvailability(availability)
-
-    if (availability === 'available') {
-      const initialized = await whiteboardProcessor.initialize()
-      if (initialized)
-        console.log('[caption-highlighter] Whiteboard initialized successfully')
-      else
-        console.warn('[caption-highlighter] Failed to initialize whiteboard processor')
-    }
-    else {
-      console.warn('[caption-highlighter] Gemini Nano not available:', availability)
-    }
+  const initialized = await whiteboardProcessor.initialize()
+  if (!initialized) {
+    whiteboardPanel.setCloudAiUnavailable('設定画面で AI の準備を完了してください。')
+    console.warn('[caption-highlighter] Cloud AI not ready')
+    return
   }
-  else {
-    const initialized = await whiteboardProcessor.initialize()
-    if (!initialized) {
-      whiteboardPanel.setFlashUnavailable('Options で同意・API Key・権限を設定してください。')
-      console.warn('[caption-highlighter] Gemini Flash not ready')
-    }
-    else {
-      // 以前のエラーメッセージ表示を解除
-      whiteboardPanel.updateState(whiteboardProcessor.getState())
-    }
-  }
+
+  whiteboardPanel.updateState(whiteboardProcessor.getState())
 }
 
 function applySettings(settings: UserSettings) {
@@ -115,8 +91,6 @@ function applySettings(settings: UserSettings) {
   observer.setDebounceMs(settings.matching.debounceMs)
   highlighter.reprocessAll()
 
-  // ホワイトボードの要約プロバイダを反映（変更時は再初期化）
-  whiteboardPanel.setProvider(settings.ai.whiteboardProvider)
   whiteboardProcessor.setAiSettings(settings.ai)
 
   if (settings.docsSync.enabled && settings.docsSync.binding && whiteboardProcessor.getState().markdownContent) {

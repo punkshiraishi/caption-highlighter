@@ -54,7 +54,7 @@ export interface WhiteboardSettings {
 export function getDefaultWhiteboardSettings(): WhiteboardSettings {
   return {
     enabled: true,
-    bufferIntervalMs: 30000, // 30秒ごとにLLM処理（Gemini Nanoは処理に時間がかかる）
+    bufferIntervalMs: 30000,
     minCharsToProcess: 100, // 最低100文字でLLM処理
     panelPosition: { x: 20, y: 100 },
     panelSize: { width: 320, height: 400 },
@@ -72,15 +72,6 @@ export interface ParsedLLMResponse {
   markdownContent?: string
   error?: string
 }
-
-/**
- * Gemini Nano APIの可用性状態
- */
-export type GeminiNanoAvailability =
-  | 'available' // 利用可能
-  | 'not-supported' // ブラウザが非対応
-  | 'not-ready' // モデルがダウンロードされていない
-  | 'error' // その他のエラー
 
 /**
  * キャプションバッファのエントリ

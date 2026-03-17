@@ -19,14 +19,10 @@ export interface ThemeSettings {
   popupText: string
 }
 
-export type WhiteboardProvider = 'nano' | 'flash'
-
 export interface AiSettings {
-  /** ホワイトボード要約のプロバイダ（初期スコープは2択） */
-  whiteboardProvider: WhiteboardProvider
-  /** Flash 等の外部 LLM 利用に対する同意（外部送信の明示オプトイン） */
+  /** クラウドAIに字幕を送信することへの明示同意 */
   allowSendCaptionsToCloud: boolean
-  /** Flash のモデル名（将来の差し替え用） */
+  /** 内部で利用する固定モデル名 */
   flashModel: string
 }
 
@@ -68,7 +64,6 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
-  whiteboardProvider: 'nano',
   allowSendCaptionsToCloud: false,
   flashModel: GEMINI_FLASH_FIXED_MODEL,
 }
@@ -84,6 +79,13 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   theme: DEFAULT_THEME_SETTINGS,
   ai: DEFAULT_AI_SETTINGS,
   docsSync: DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS,
+}
+
+export function applyAiSettingsDefaults(partial?: Partial<AiSettings>): AiSettings {
+  return {
+    allowSendCaptionsToCloud: partial?.allowSendCaptionsToCloud ?? DEFAULT_AI_SETTINGS.allowSendCaptionsToCloud,
+    flashModel: partial?.flashModel ?? DEFAULT_AI_SETTINGS.flashModel,
+  }
 }
 
 export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): UserSettings {
@@ -103,7 +105,7 @@ export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): User
         },
     matching: { ...DEFAULT_MATCHING_SETTINGS, ...partial?.matching },
     theme: { ...DEFAULT_THEME_SETTINGS, ...partial?.theme },
-    ai: { ...DEFAULT_AI_SETTINGS, ...partial?.ai },
+    ai: applyAiSettingsDefaults(partial?.ai),
     docsSync: {
       ...DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS,
       ...partial?.docsSync,

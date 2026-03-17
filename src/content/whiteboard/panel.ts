@@ -10,8 +10,7 @@ import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_MAXIMIZE, ICON_
 import { renderMarkdownToHtml } from './markdown/render'
 import type { GoogleDocsTabSummary } from '~/shared/google-docs'
 import type { GoogleDocsSyncStatus } from '~/shared/messages/google-docs-sync'
-import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
-import type { WhiteboardProvider } from '~/shared/models/settings'
+import type { WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 
 /* eslint-disable no-console */
 
@@ -32,7 +31,6 @@ export class WhiteboardPanel {
   private contentEl: HTMLElement | null = null
   private markdownViewEl: HTMLElement | null = null
   private imageViewEl: HTMLElement | null = null
-  private footerInfoEl: HTMLElement | null = null
   private docsSyncStatusEl: HTMLElement | null = null
   private docsSyncSelectEl: HTMLSelectElement | null = null
   private debugRowEl: HTMLElement | null = null
@@ -155,7 +153,7 @@ export class WhiteboardPanel {
       </div>
       <div class="whiteboard-panel__footer">
         <div class="whiteboard-panel__footer-main">
-          <span class="whiteboard-panel__footer-info">Gemini Nano で構造化</span>
+          <span class="whiteboard-panel__footer-info">AI が会議メモを整理します</span>
         </div>
         <div class="whiteboard-panel__docs-sync">
           <div class="whiteboard-panel__docs-sync-header">
@@ -181,7 +179,6 @@ export class WhiteboardPanel {
     this.contentEl = this.panel.querySelector('.whiteboard-panel__markdown')
     this.markdownViewEl = this.panel.querySelector('.whiteboard-panel__view--markdown')
     this.imageViewEl = this.panel.querySelector('.whiteboard-panel__view--image')
-    this.footerInfoEl = this.panel.querySelector('.whiteboard-panel__footer-info')
     this.docsSyncStatusEl = this.panel.querySelector('.whiteboard-panel__docs-sync-status')
     this.docsSyncSelectEl = this.panel.querySelector('.whiteboard-panel__docs-sync-select')
     this.debugRowEl = this.panel.querySelector('.whiteboard-panel__debug')
@@ -592,59 +589,18 @@ export class WhiteboardPanel {
     }
   }
 
-  /**
-   * Gemini Nanoの可用性を設定
-   */
-  setAvailability(availability: GeminiNanoAvailability): void {
-    if (this.contentEl && availability !== 'available') {
-      this.contentEl.innerHTML = `
-        <div class="whiteboard-panel__unavailable">
-          <div class="whiteboard-panel__unavailable-icon"><span class="whiteboard-icon" role="img" aria-label="警告">${ICON_WARNING}</span></div>
-          <div class="whiteboard-panel__unavailable-title">Gemini Nano が利用できません</div>
-          <div class="whiteboard-panel__unavailable-text">
-            ${this.getAvailabilityMessage(availability)}
-          </div>
-        </div>
-      `
-    }
-  }
-
-  setProvider(provider: WhiteboardProvider): void {
-    if (!this.footerInfoEl)
-      return
-    this.footerInfoEl.textContent = provider === 'flash'
-      ? ''
-      : 'Gemini Nano で構造化'
-  }
-
-  setFlashUnavailable(message: string): void {
+  setCloudAiUnavailable(message: string): void {
     if (!this.contentEl)
       return
     this.contentEl.innerHTML = `
       <div class="whiteboard-panel__unavailable">
         <div class="whiteboard-panel__unavailable-icon"><span class="whiteboard-icon" role="img" aria-label="警告">${ICON_WARNING}</span></div>
-        <div class="whiteboard-panel__unavailable-title">Gemini Flash が利用できません</div>
+        <div class="whiteboard-panel__unavailable-title">AI 会議メモの準備がまだ完了していません</div>
         <div class="whiteboard-panel__unavailable-text">
           ${message}
         </div>
       </div>
     `
-  }
-
-  /**
-   * 可用性に応じたメッセージを取得
-   */
-  private getAvailabilityMessage(availability: GeminiNanoAvailability): string {
-    switch (availability) {
-      case 'not-supported':
-        return 'Chrome Canary/Dev で chrome://flags から「Prompt API for Gemini Nano」を有効にしてください。'
-      case 'not-ready':
-        return 'chrome://components から「Optimization Guide On Device Model」をダウンロードしてください。'
-      case 'error':
-        return 'エラーが発生しました。ブラウザを再起動してみてください。'
-      default:
-        return ''
-    }
   }
 
   /**
@@ -753,7 +709,6 @@ export class WhiteboardPanel {
     this.contentEl = null
     this.markdownViewEl = null
     this.imageViewEl = null
-    this.footerInfoEl = null
     this.debugRowEl = null
     this.debugButtonEl = null
     this.copyBtn = null

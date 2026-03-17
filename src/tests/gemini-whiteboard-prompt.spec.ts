@@ -18,7 +18,7 @@ describe('gemini whiteboard prompt', () => {
     ].join(' '))
   })
 
-  it('buildWhiteboardPrompt (initial) includes cleaned captions and ends with heading seed', () => {
+  it('buildWhiteboardPrompt (initial) includes cleaned captions and ends with markdown output label', () => {
     const prompt = buildWhiteboardPrompt({
       captions: '短い\nこれは十分に長いテスト行です12345\nこれも十分に長いテスト行です12345\nまた十分に長いテスト行です12345',
       previousSummary: '',
@@ -28,10 +28,10 @@ describe('gemini whiteboard prompt', () => {
     expect(prompt).toContain('見出しは3段階を使い分ける: "##"（大分類）、"###"（中分類）、"####"（小分類）')
     // 最後の3行が含まれる（短い行を除いた後）
     expect(prompt).toContain('発言: これは十分に長いテスト行です12345 これも十分に長いテスト行です12345 また十分に長いテスト行です12345')
-    expect(prompt.endsWith('##')).toBe(true)
+    expect(prompt.endsWith('議事録（Markdown）:\n')).toBe(true)
   })
 
-  it('buildWhiteboardPrompt (update) includes previous summary and ends with heading seed', () => {
+  it('buildWhiteboardPrompt (update) includes previous summary and ends with markdown output label', () => {
     const prev = '## 議題\n- 予算\n## 担当\n- 人事部'
     const prompt = buildWhiteboardPrompt({
       captions: '短い\nこれは十分に長いテスト行です12345\nこれも十分に長いテスト行です12345\nまた十分に長いテスト行です12345',
@@ -43,6 +43,6 @@ describe('gemini whiteboard prompt', () => {
     expect(prompt).toContain(`現在の議事録（Markdown）:\n${prev}`)
     // 最後の3行が含まれる（短い行を除いた後）
     expect(prompt).toContain('追加内容: これは十分に長いテスト行です12345 これも十分に長いテスト行です12345 また十分に長いテスト行です12345')
-    expect(prompt.endsWith('##')).toBe(true)
+    expect(prompt.endsWith('更新した議事録（Markdown）:\n')).toBe(true)
   })
 })
