@@ -167,7 +167,7 @@ async function syncWhiteboardToGoogleDocs(markdownContent: string, lastUpdated: 
     }
 
     lastPushedMarkdown = markdownContent
-    whiteboardPanel.setDocsSyncPhase('success', '同期済み')
+    whiteboardPanel.setDocsSyncPhase('success', `同期済み ${new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`)
   }
   catch (error) {
     whiteboardPanel.setDocsSyncPhase('error', error instanceof Error ? error.message : String(error))

@@ -117,6 +117,23 @@ const runtimeState: DocsSyncRuntimeState = {
   resolvedTabId: null,
 }
 
+let syncQueue: Promise<void> = Promise.resolve()
+
+async function runExclusiveSync<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = syncQueue
+  let release!: () => void
+  syncQueue = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await previous
+  try {
+    return await operation()
+  }
+  finally {
+    release()
+  }
+}
+
 function toTabSummary(tab: Tabs.Tab): GoogleDocsTabSummary | null {
   if (typeof tab.id !== 'number' || typeof tab.windowId !== 'number' || !tab.url)
     return null
@@ -264,7 +281,13 @@ export async function handlePushGoogleDocsUpdate(markdownContent: string): Promi
   }
 
   try {
-    await applyMarkdownWithDebugger(targetTab.id, markdownContent)
+    const targetTabId = targetTab.id
+    if (typeof targetTabId !== 'number')
+      throw new Error('Bound Google Docs tab id is missing.')
+
+    await runExclusiveSync(async () => {
+      await applyMarkdownWithDebugger(targetTabId, markdownContent)
+    })
 
     runtimeState.lastSuccessAt = Date.now()
     runtimeState.lastError = null
@@ -274,7 +297,17 @@ export async function handlePushGoogleDocsUpdate(markdownContent: string): Promi
     }
   }
   catch (error) {
-    runtimeState.lastError = error instanceof Error ? error.message : String(error)
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('Detached while handling command')) {
+      runtimeState.lastSuccessAt = runtimeState.lastSuccessAt ?? Date.now()
+      runtimeState.lastError = null
+      return {
+        ok: true,
+        status: await buildStatus(settings),
+      }
+    }
+
+    runtimeState.lastError = message
     return {
       ok: false,
       status: await buildStatus(settings),
