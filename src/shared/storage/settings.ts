@@ -2,7 +2,7 @@ import browser, { type Storage } from 'webextension-polyfill'
 import type { DictionaryEntry } from '../models/dictionary'
 import { mergeDictionaryEntries } from '../models/dictionary'
 import type { UserSettings } from '../models/settings'
-import { DEFAULT_USER_SETTINGS, applyUserSettingsDefaults } from '../models/settings'
+import { DEFAULT_USER_SETTINGS, applyAiSettingsDefaults, applyUserSettingsDefaults } from '../models/settings'
 
 export const STORAGE_VERSION = 1
 export const STORAGE_KEY = 'captionHighlighter:userSettings'
@@ -30,7 +30,12 @@ function normalizeSettings(settings: UserSettings): UserSettings {
     },
     matching: { ...DEFAULT_USER_SETTINGS.matching, ...settings.matching },
     theme: { ...DEFAULT_USER_SETTINGS.theme, ...settings.theme },
-    ai: { ...DEFAULT_USER_SETTINGS.ai, ...settings.ai },
+    ai: applyAiSettingsDefaults(settings.ai),
+    docsSync: {
+      ...DEFAULT_USER_SETTINGS.docsSync,
+      ...settings.docsSync,
+      binding: settings.docsSync.binding ? { ...settings.docsSync.binding } : null,
+    },
   }
 }
 
@@ -41,6 +46,7 @@ function deserializeSettings(payload: StoredSettingsPayload | null): UserSetting
       matching: { ...DEFAULT_USER_SETTINGS.matching },
       theme: { ...DEFAULT_USER_SETTINGS.theme },
       ai: { ...DEFAULT_USER_SETTINGS.ai },
+      docsSync: { ...DEFAULT_USER_SETTINGS.docsSync },
     }
   }
 
@@ -54,6 +60,7 @@ function deserializeSettings(payload: StoredSettingsPayload | null): UserSetting
     matching: payload.settings.matching,
     theme: payload.settings.theme,
     ai: payload.settings.ai,
+    docsSync: payload.settings.docsSync,
   })
 }
 

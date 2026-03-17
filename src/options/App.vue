@@ -7,7 +7,6 @@ import { useSettingsStore } from './stores/settings'
 import type { DictionaryImportStats } from '~/shared/utils/csv'
 import { buildDictionaryFromCsv, parseCsv } from '~/shared/utils/csv'
 import { loadSecrets, saveSecrets } from '~/shared/storage/secrets'
-import { GEMINI_FLASH_FIXED_MODEL } from '~/shared/ai/gemini'
 
 const store = useSettingsStore()
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -18,12 +17,8 @@ const filter = computed({
 
 const apiKey = ref('')
 const permGranted = ref<boolean | null>(null)
-const flashTestResult = ref<string | null>(null)
-const flashTestError = ref<string | null>(null)
 const savingKey = ref(false)
-
 const flashOrigins = ['https://generativelanguage.googleapis.com/*']
-const isFlash = computed(() => store.ai.whiteboardProvider === 'flash')
 
 const headers = ref<string[]>([])
 const csvRows = ref<Record<string, string>[]>([])
@@ -36,6 +31,19 @@ const stats = ref<DictionaryImportStats | null>(null)
 const importError = ref<string | null>(null)
 
 const hasPreview = computed(() => headers.value.length > 0 && csvRows.value.length > 0)
+const hasApiKey = computed(() => apiKey.value.trim().length > 0)
+const aiConsentGranted = computed(() => store.ai.allowSendCaptionsToCloud)
+const aiPermissionGranted = computed(() => permGranted.value === true)
+const aiReady = computed(() => hasApiKey.value && aiConsentGranted.value && aiPermissionGranted.value)
+const aiChecklist = computed(() => [
+  { label: 'Google AI Studio key を保存', done: hasApiKey.value },
+  { label: '字幕を Google AI に送って会議メモを作ることに同意', done: aiConsentGranted.value },
+  { label: 'ブラウザで Google AI への接続を許可', done: aiPermissionGranted.value },
+])
+const aiCompletedSteps = computed(() => aiChecklist.value.filter(item => item.done).length)
+const canTestAi = computed(() => aiReady.value && !savingKey.value)
+const totalSetupSteps = 1
+const completedSetupSteps = computed(() => aiReady.value ? 1 : 0)
 
 watch(() => [selection.term, selection.definition, selection.alias], () => {
   importError.value = null
@@ -58,43 +66,31 @@ async function refreshPermission() {
 }
 
 async function requestPermission() {
-  flashTestResult.value = null
-  flashTestError.value = null
   const ok = await browser.permissions.request({ origins: flashOrigins })
   permGranted.value = ok
 }
 
 async function persistApiKey() {
   savingKey.value = true
-  flashTestResult.value = null
-  flashTestError.value = null
   try {
-    await saveSecrets({ geminiApiKey: apiKey.value })
+    await saveSecrets({ geminiApiKey: apiKey.value.trim() })
   }
   finally {
     savingKey.value = false
   }
 }
 
-async function testFlash() {
-  flashTestResult.value = null
-  flashTestError.value = null
+async function testAiConnection() {
   try {
-    const resp = await browser.runtime.sendMessage({
+    await browser.runtime.sendMessage({
       type: 'ai:flash:test',
-      payload: { model: store.ai.flashModel },
     }) as { ok: boolean, text?: string, error?: string }
-
-    if (!resp.ok) {
-      flashTestError.value = resp.error || '接続テストに失敗しました'
-      return
-    }
-    flashTestResult.value = resp.text || '(ok)'
   }
-  catch (error) {
-    flashTestError.value = error instanceof Error ? error.message : String(error)
+  catch {
+    // options 画面では詳細レスポンスを表示しない
   }
 }
+
 function triggerFile() {
   fileInput.value?.click()
 }
@@ -182,42 +178,171 @@ async function handleReset() {
   if (window.confirm('辞書をすべて削除しますか？'))
     await store.clearDictionary()
 }
+
+const setupHeadline = computed(() => {
+  if (completedSetupSteps.value === totalSetupSteps)
+    return '準備完了'
+  if (completedSetupSteps.value === 0)
+    return '初期設定が必要です'
+  return 'あと少しで完了です'
+})
+
+const setupMessage = computed(() => {
+  if (completedSetupSteps.value === totalSetupSteps)
+    return 'Google Meet で会議メモを使う準備ができています。'
+  return 'まずは API key と権限の設定を完了してください。'
+})
 </script>
 
 <template>
   <main v-if="!store.loading" class="options">
-    <header class="options__header">
-      <div>
-        <h1>Caption Highlighter</h1>
-        <p class="options__subtitle">
-          Google Meet の字幕をリアルタイムにハイライトします。
+    <header class="hero">
+      <div class="hero__copy">
+        <p class="hero__eyebrow">
+          Caption Highlighter
+        </p>
+        <h1>{{ setupHeadline }}</h1>
+        <p class="hero__text">
+          {{ setupMessage }}
         </p>
       </div>
-      <button class="button button--secondary" type="button" @click="handleReset">
-        辞書をすべて削除
-      </button>
+
+      <div class="hero__status">
+        <div class="hero__status-label">
+          セットアップ進捗
+        </div>
+        <div class="hero__status-value">
+          {{ completedSetupSteps }} / {{ totalSetupSteps }}
+        </div>
+        <div class="hero__status-bar">
+          <span :style="{ width: `${(completedSetupSteps / totalSetupSteps) * 100}%` }" />
+        </div>
+      </div>
     </header>
 
-    <section class="panel">
-      <header class="panel__header">
+    <section class="summary-grid">
+      <article class="summary-card">
+        <span class="summary-card__label">AI 会議メモ</span>
+        <strong class="summary-card__value">{{ aiReady ? '使えます' : '準備が必要です' }}</strong>
+        <span class="summary-card__meta">{{ aiCompletedSteps }} / 3 完了</span>
+      </article>
+
+      <article class="summary-card">
+        <span class="summary-card__label">辞書</span>
+        <strong class="summary-card__value">{{ store.filteredEntries.length }} 件</strong>
+        <span class="summary-card__meta">Meet の字幕で強調表示</span>
+      </article>
+
+      <article class="summary-card">
+        <span class="summary-card__label">Google Docs 同期</span>
+        <strong class="summary-card__value">Meet 画面で選択</strong>
+        <span class="summary-card__meta">保存先は Meet 側のホワイトボードから切り替えます</span>
+      </article>
+    </section>
+
+    <section class="setup-card">
+      <header class="setup-card__header">
         <div>
-          <h2>辞書</h2>
-          <p class="panel__subtitle">
-            用語と説明を管理します。CSV からの取り込みに対応しています。
+          <p class="setup-card__step">
+            STEP 1
+          </p>
+          <h2>AI 会議メモを使えるようにする</h2>
+          <p class="setup-card__text">
+            字幕を Google AI に送り、会議メモを自動で整理します。会話内容はこの機能のためにクラウドへ送信されます。
           </p>
         </div>
-        <button class="button" type="button" @click="triggerFile">
-          CSV をインポート
-        </button>
+        <span class="status-pill" :class="{ 'status-pill--ok': aiReady }">
+          {{ aiReady ? '準備完了' : '未完了' }}
+        </span>
+      </header>
+
+      <div class="setup-grid">
+        <label class="field-card field-card--wide">
+          <span class="field-card__label">1. Google AI Studio key</span>
+          <span class="field-card__help">Google AI Studio で作成した key を保存してください。</span>
+          <div class="field-row">
+            <input v-model="apiKey" type="password" placeholder="AIza..." autocomplete="off">
+            <button class="button" type="button" :disabled="savingKey" @click="persistApiKey">
+              {{ savingKey ? '保存中...' : '保存する' }}
+            </button>
+          </div>
+        </label>
+
+        <div class="field-card field-card--wide">
+          <span class="field-card__label">2. 字幕の送信に同意する</span>
+          <label class="check-row">
+            <input
+              type="checkbox"
+              :checked="store.ai.allowSendCaptionsToCloud"
+              @change="store.updateAi({ allowSendCaptionsToCloud: ($event.target as HTMLInputElement).checked })"
+            >
+            Google Meet の字幕を Google AI に送って会議メモを作ることに同意します
+          </label>
+        </div>
+
+        <div class="field-card field-card--wide">
+          <span class="field-card__label">3. ブラウザの接続許可</span>
+          <span class="field-card__help">拡張機能が Google AI にアクセスできるようにします。</span>
+          <div class="field-row">
+            <button class="button button--secondary" type="button" @click="requestPermission">
+              許可する
+            </button>
+            <button class="button button--ghost" type="button" @click="refreshPermission">
+              状態を更新
+            </button>
+            <span class="status-chip" :class="{ 'status-chip--ok': aiPermissionGranted, 'status-chip--warn': permGranted === false }">
+              {{ permGranted === null ? '確認中' : (aiPermissionGranted ? '許可済み' : '未許可') }}
+            </span>
+          </div>
+        </div>
+
+        <div class="field-card field-card--wide">
+          <span class="field-card__label">接続チェック</span>
+          <span class="field-card__help">上の 3 つが完了したら、実際に接続できるか確認します。</span>
+          <div class="field-row">
+            <button class="button" type="button" :disabled="!canTestAi" @click="testAiConnection">
+              接続を確認する
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ul class="checklist">
+        <li v-for="item in aiChecklist" :key="item.label" :class="{ 'is-done': item.done }">
+          <span>{{ item.done ? '完了' : '未完了' }}</span>
+          <span>{{ item.label }}</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="setup-card">
+      <header class="setup-card__header">
+        <div>
+          <p class="setup-card__step">
+            辞書
+          </p>
+          <h2>字幕で強調したい言葉を管理する</h2>
+          <p class="setup-card__text">
+            用語と説明を登録すると、Google Meet の字幕でその言葉を見つけたときに強調表示します。
+          </p>
+        </div>
+        <div class="field-row">
+          <button class="button" type="button" @click="triggerFile">
+            CSV を読み込む
+          </button>
+          <button class="button button--secondary" type="button" @click="handleReset">
+            辞書をすべて削除
+          </button>
+        </div>
         <input ref="fileInput" class="sr-only" type="file" accept="text/csv" @change="handleFileSelected">
       </header>
 
-      <div class="dictionary__toolbar">
-        <label class="dictionary__search">
+      <div class="dictionary-toolbar">
+        <label class="search-field">
           <span>検索</span>
           <input v-model="filter" type="search" placeholder="用語または説明">
         </label>
-        <span class="dictionary__count">{{ store.filteredEntries.length }} 件</span>
+        <span class="dictionary-count">{{ store.filteredEntries.length }} 件</span>
       </div>
 
       <DictionaryTable :entries="store.filteredEntries" @remove="store.removeEntry" />
@@ -233,92 +358,9 @@ async function handleReset() {
         @confirm="confirmImport"
         @cancel="clearPreview"
       />
-      <p v-else-if="importError" class="import-error">
+      <p v-else-if="importError" class="feedback feedback--warn">
         {{ importError }}
       </p>
-    </section>
-
-    <section class="panel">
-      <header class="panel__header">
-        <div>
-          <h2>ホワイトボード要約</h2>
-          <p class="panel__subtitle">
-            会議メモを自動で構造化します。Flash は beta（外部送信あり・既定OFF）です。
-          </p>
-        </div>
-      </header>
-
-      <div class="ai-grid">
-        <label class="ai-field">
-          <span>要約エンジン</span>
-          <select
-            :value="store.ai.whiteboardProvider"
-            @change="store.setWhiteboardProvider(($event.target as HTMLSelectElement).value as any)"
-          >
-            <option value="nano">Gemini Nano（ローカル）</option>
-            <option value="flash">Gemini Flash（クラウド / beta）</option>
-          </select>
-        </label>
-
-        <div v-if="isFlash" class="ai-field">
-          <span>Flash model（固定）</span>
-          <div class="ai-row">
-            <span class="ai-pill ai-pill--ok">{{ GEMINI_FLASH_FIXED_MODEL }}</span>
-          </div>
-          <span class="ai-help">ホワイトボード要約の Flash はモデルを固定しています（テストページでは任意選択できます）。</span>
-        </div>
-
-        <label v-if="isFlash" class="ai-field ai-field--wide">
-          <span>AI Studio API Key（Secrets）</span>
-          <div class="ai-row">
-            <input v-model="apiKey" type="password" placeholder="AIza..." autocomplete="off">
-            <button class="button" type="button" :disabled="savingKey" @click="persistApiKey">
-              {{ savingKey ? '保存中...' : '保存' }}
-            </button>
-          </div>
-          <span class="ai-help">API Key は拡張の local storage に保存されます（Meetページには表示しません）。</span>
-        </label>
-
-        <label v-if="isFlash" class="ai-field ai-field--wide">
-          <span>外部送信の同意（必須）</span>
-          <label class="ai-check">
-            <input
-              type="checkbox"
-              :checked="store.ai.allowSendCaptionsToCloud"
-              @change="store.updateAi({ allowSendCaptionsToCloud: ($event.target as HTMLInputElement).checked })"
-            >
-            字幕テキストを Gemini Flash（外部API）へ送信することに同意します（beta）
-          </label>
-        </label>
-
-        <div v-if="isFlash" class="ai-field ai-field--wide">
-          <span>権限</span>
-          <div class="ai-row">
-            <button class="button button--secondary" type="button" @click="requestPermission">
-              権限を許可
-            </button>
-            <button class="button button--secondary" type="button" @click="refreshPermission">
-              状態を更新
-            </button>
-            <span class="ai-pill" :class="{ 'ai-pill--ok': permGranted, 'ai-pill--ng': permGranted === false }">
-              {{ permGranted === null ? '不明' : (permGranted ? '許可済み' : '未許可') }}
-            </span>
-          </div>
-          <span class="ai-help">Flash 利用には `generativelanguage.googleapis.com` へのアクセス権限が必要です。</span>
-        </div>
-
-        <div v-if="isFlash" class="ai-field ai-field--wide">
-          <span>接続テスト</span>
-          <div class="ai-row">
-            <button class="button" type="button" @click="testFlash">
-              接続テスト
-            </button>
-            <span v-if="flashTestResult" class="ai-ok">OK</span>
-            <span v-if="flashTestError" class="ai-ng">{{ flashTestError }}</span>
-          </div>
-          <pre v-if="flashTestResult" class="ai-preview">{{ flashTestResult }}</pre>
-        </div>
-      </div>
     </section>
   </main>
   <div v-else class="loading">
@@ -330,194 +372,365 @@ async function handleReset() {
 .options {
   min-height: 100vh;
   padding: 32px;
-  background: #0f172a;
+  background:
+    radial-gradient(circle at top left, rgba(255, 219, 167, 0.55), transparent 28%),
+    radial-gradient(circle at top right, rgba(157, 230, 210, 0.35), transparent 30%),
+    linear-gradient(180deg, #fffdf6 0%, #f4f8ff 100%);
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hero,
+.setup-card,
+.summary-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(18px);
+}
+
+.hero__copy h1 {
+  margin: 4px 0 10px;
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.hero__eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.hero__text {
+  margin: 0;
+  max-width: 620px;
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.hero__status {
+  min-width: 220px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #1f2937 0%, #0f172a 100%);
   color: #f8fafc;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 10px;
 }
 
-.options__header {
+.hero__status-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #cbd5e1;
+}
+
+.hero__status-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.hero__status-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+  overflow: hidden;
+}
+
+.hero__status-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f59e0b 0%, #34d399 100%);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  border-radius: 22px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-card__label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.summary-card__value {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.summary-card__meta {
+  color: #475569;
+  font-size: 13px;
+}
+
+.setup-card {
+  border-radius: 28px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.setup-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-}
-
-.options__subtitle {
-  margin: 4px 0 0;
-  color: #cbd5f5;
-}
-
-.panel {
-  background: #111c38;
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  box-shadow: 0 20px 30px rgba(11, 24, 56, 0.4);
-}
-
-.panel__header {
-  display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
 }
 
-.panel__subtitle {
-  margin: 6px 0 0;
-  color: #94a3b8;
+.setup-card__step {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0f766e;
 }
 
-.ai-grid {
+.setup-card__header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.setup-card__text {
+  margin: 8px 0 0;
+  max-width: 760px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.setup-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
-.ai-field {
+.field-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-  color: #cbd5f5;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
-.ai-field > span {
-  color: #cbd5f5;
-}
-
-.ai-field--wide {
+.field-card--wide {
   grid-column: 1 / -1;
 }
 
-.ai-row {
+.field-card__label {
+  font-weight: 700;
+}
+
+.field-card__help,
+.field-note {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.field-row {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 10px;
+}
+
+.field-row--stretch select {
+  min-width: 280px;
+  flex: 1 1 320px;
+}
+
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.checklist li {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.checklist li.is-done {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.status-pill,
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-pill {
+  min-height: 38px;
+  padding: 0 14px;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.status-pill--ok {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.status-pill--warn {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.status-chip {
+  min-height: 30px;
+  padding: 0 10px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.status-chip--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-chip--warn {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.feedback {
+  margin: 0;
+  font-size: 13px;
+}
+
+.feedback--ok {
+  color: #166534;
+}
+
+.feedback--warn {
+  color: #b45309;
+}
+
+.result-preview {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  overflow: auto;
+}
+
+.dictionary-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
-.ai-help {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.ai-check {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  color: #e2e8f0;
-}
-
-.ai-pill {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  color: #94a3b8;
-}
-
-.ai-pill--ok {
-  border-color: rgba(34, 197, 94, 0.4);
-  color: #86efac;
-}
-
-.ai-pill--ng {
-  border-color: rgba(249, 115, 22, 0.4);
-  color: #fdba74;
-}
-
-.ai-ok {
-  color: #86efac;
-  font-size: 13px;
-}
-
-.ai-ng {
-  color: #fdba74;
-  font-size: 13px;
-}
-
-.ai-preview {
-  margin-top: 10px;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: #e2e8f0;
-  font-size: 12px;
-}
-
-.ai-grid select,
-.ai-grid input[type="text"],
-.ai-grid input[type="password"] {
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: inherit;
-}
-
-.button {
-  background: #38bdf8;
-  color: #0f172a;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 120ms ease-in-out;
-}
-
-.button:hover {
-  background: #22d3ee;
-}
-
-.button--secondary {
-  background: transparent;
-  color: #e2e8f0;
-  border: 1px solid rgba(226, 232, 240, 0.4);
-}
-
-.dictionary__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.dictionary__search {
+.search-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 14px;
-  color: #cbd5f5;
 }
 
-.dictionary__search input {
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 8px;
-  padding: 8px 12px;
+.dictionary-count {
+  color: #64748b;
+  font-size: 14px;
+}
+
+input[type="search"],
+input[type="password"],
+select {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #fff;
   color: inherit;
 }
 
-.dictionary__search input:focus {
-  outline: 2px solid #38bdf8;
+input:focus,
+select:focus {
+  outline: 2px solid rgba(14, 165, 233, 0.24);
   outline-offset: 2px;
+  border-color: #38bdf8;
 }
 
-.dictionary__count {
-  font-size: 14px;
-  color: #94a3b8;
+.button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.import-error {
-  margin-top: 12px;
-  color: #f97316;
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.button--secondary {
+  background: #fff;
+  color: #334155;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.button--ghost {
+  background: #eef2ff;
+  color: #1e3a8a;
 }
 
 .loading {
@@ -525,8 +738,8 @@ async function handleReset() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0f172a;
-  color: #f8fafc;
+  background: #fffdf6;
+  color: #334155;
   font-size: 18px;
 }
 
@@ -539,5 +752,23 @@ async function handleReset() {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+@media (max-width: 900px) {
+  .options {
+    padding: 18px;
+  }
+
+  .hero {
+    flex-direction: column;
+  }
+
+  .hero__status {
+    min-width: 0;
+  }
+
+  .setup-card {
+    padding: 18px;
+  }
 }
 </style>

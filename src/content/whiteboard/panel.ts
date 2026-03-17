@@ -3,12 +3,14 @@
  * ドラッグ可能、リサイズ可能なフローティングウィンドウ
  */
 
+import browser from 'webextension-polyfill'
 import { getGeminiFlashClient } from '../ai/gemini-flash'
 import { injectSampleCaptions } from '../dev/sample-captions'
 import { ICON_CHECK, ICON_CLIPBOARD, ICON_CLOSE, ICON_COPY, ICON_MAXIMIZE, ICON_MINIMIZE, ICON_WARNING } from './icons'
 import { renderMarkdownToHtml } from './markdown/render'
-import type { GeminiNanoAvailability, WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
-import type { WhiteboardProvider } from '~/shared/models/settings'
+import type { GoogleDocsTabSummary } from '~/shared/google-docs'
+import type { GoogleDocsSyncStatus } from '~/shared/messages/google-docs-sync'
+import type { WhiteboardSettings, WhiteboardState } from '~/shared/models/whiteboard'
 
 /* eslint-disable no-console */
 
@@ -29,9 +31,14 @@ export class WhiteboardPanel {
   private contentEl: HTMLElement | null = null
   private markdownViewEl: HTMLElement | null = null
   private imageViewEl: HTMLElement | null = null
-  private footerInfoEl: HTMLElement | null = null
+  private docsSyncStatusEl: HTMLElement | null = null
+  private docsSyncSelectEl: HTMLSelectElement | null = null
   private debugRowEl: HTMLElement | null = null
   private debugButtonEl: HTMLButtonElement | null = null
+  private docsTabs: GoogleDocsTabSummary[] = []
+  private docsSyncStatus: GoogleDocsSyncStatus | null = null
+  private docsSyncPhase: 'idle' | 'syncing' | 'success' | 'error' = 'idle'
+  private docsSyncMessage: string | null = null
   private copyBtn: HTMLElement | null = null
   private minimizeBtn: HTMLButtonElement | null = null
   private imageRunBtn: HTMLButtonElement | null = null
@@ -145,8 +152,17 @@ export class WhiteboardPanel {
         </div>
       </div>
       <div class="whiteboard-panel__footer">
-        <div class="whiteboard-panel__footer-main">
-          <span class="whiteboard-panel__footer-info">Gemini Nano で構造化</span>
+        <div class="whiteboard-panel__footer-main"></div>
+        <div class="whiteboard-panel__docs-sync">
+          <div class="whiteboard-panel__docs-sync-header">
+            <span>Google Docs 同期</span>
+            <span class="whiteboard-panel__docs-sync-status"></span>
+          </div>
+          <div class="whiteboard-panel__docs-sync-controls">
+            <select class="whiteboard-panel__docs-sync-select">
+              <option value="">未設定</option>
+            </select>
+          </div>
         </div>
         <div class="whiteboard-panel__debug">
           <button class="whiteboard-panel__debug-btn" type="button">サンプル字幕を注入</button>
@@ -161,7 +177,8 @@ export class WhiteboardPanel {
     this.contentEl = this.panel.querySelector('.whiteboard-panel__markdown')
     this.markdownViewEl = this.panel.querySelector('.whiteboard-panel__view--markdown')
     this.imageViewEl = this.panel.querySelector('.whiteboard-panel__view--image')
-    this.footerInfoEl = this.panel.querySelector('.whiteboard-panel__footer-info')
+    this.docsSyncStatusEl = this.panel.querySelector('.whiteboard-panel__docs-sync-status')
+    this.docsSyncSelectEl = this.panel.querySelector('.whiteboard-panel__docs-sync-select')
     this.debugRowEl = this.panel.querySelector('.whiteboard-panel__debug')
     this.debugButtonEl = this.panel.querySelector('.whiteboard-panel__debug-btn')
     this.copyBtn = this.panel.querySelector('.whiteboard-panel__btn--copy')
@@ -182,6 +199,7 @@ export class WhiteboardPanel {
     this.imageRunBtn?.toggleAttribute('disabled', true)
 
     this.initializeDebugToggle()
+    void this.refreshGoogleDocsBindings()
 
     // 入場アニメーション後にクラスを削除
     setTimeout(() => {
@@ -225,6 +243,7 @@ export class WhiteboardPanel {
     this.downloadBtn?.addEventListener('click', () => this.downloadImage())
 
     this.debugButtonEl?.addEventListener('click', () => this.handleSampleInject())
+    this.docsSyncSelectEl?.addEventListener('change', () => void this.handleGoogleDocsSelectionChange())
 
     // グローバルイベント
     document.addEventListener('mousemove', e => this.onMouseMove(e))
@@ -235,17 +254,109 @@ export class WhiteboardPanel {
     if (!this.debugRowEl || !this.debugButtonEl)
       return
 
-    if (!__DEV__) {
+    const manifest = browser.runtime.getManifest()
+    const isPackagedProduction = !__DEV__ && 'update_url' in manifest
+    if (isPackagedProduction)
       this.debugRowEl.style.display = 'none'
-    }
+  }
+
+  setDocsSyncPhase(phase: 'idle' | 'syncing' | 'success' | 'error', message: string | null = null): void {
+    this.docsSyncPhase = phase
+    this.docsSyncMessage = message
+    this.renderGoogleDocsStatus()
   }
 
   private handleSampleInject(): void {
-    if (!__DEV__)
+    if (!this.debugRowEl || this.debugRowEl.style.display === 'none')
       return
+
     injectSampleCaptions()
     // サンプル注入後、即座に処理を開始（バッファ待ちをスキップ）
     this.sampleInjectCallback?.()
+  }
+
+  private renderGoogleDocsStatus(): void {
+    if (!this.docsSyncStatusEl || !this.docsSyncSelectEl)
+      return
+
+    const shouldShowError = this.docsSyncPhase === 'error' && Boolean(this.docsSyncMessage)
+    this.docsSyncStatusEl.textContent = shouldShowError ? this.docsSyncMessage ?? '' : ''
+    this.docsSyncStatusEl.dataset.phase = shouldShowError ? 'error' : 'idle'
+    this.docsSyncStatusEl.style.display = shouldShowError ? 'block' : 'none'
+
+    this.docsSyncSelectEl.disabled = this.docsSyncPhase === 'syncing'
+  }
+
+  private populateGoogleDocsSelect(): void {
+    if (!this.docsSyncSelectEl)
+      return
+
+    const selectedValue = this.docsSyncSelectEl.value
+    this.docsSyncSelectEl.innerHTML = '<option value="">未設定</option>'
+
+    for (const tab of this.docsTabs) {
+      const option = document.createElement('option')
+      option.value = String(tab.tabId)
+      option.textContent = `${tab.title}${tab.active ? ' (active)' : ''}`
+      this.docsSyncSelectEl.appendChild(option)
+    }
+
+    const boundId = this.docsSyncStatus?.resolvedTabId ?? this.docsSyncStatus?.binding?.tabId ?? null
+    const nextValue = selectedValue || (boundId ? String(boundId) : '')
+    if (nextValue && this.docsTabs.some(tab => String(tab.tabId) === nextValue))
+      this.docsSyncSelectEl.value = nextValue
+  }
+
+  async refreshGoogleDocsBindings(): Promise<void> {
+    try {
+      const [tabsResponse, statusResponse] = await Promise.all([
+        browser.runtime.sendMessage({ type: 'gdocs-sync:list-tabs' }) as Promise<{ ok: boolean, tabs: GoogleDocsTabSummary[] }>,
+        browser.runtime.sendMessage({ type: 'gdocs-sync:get-status' }) as Promise<{ ok: boolean, status: GoogleDocsSyncStatus }>,
+      ])
+
+      this.docsTabs = tabsResponse.tabs ?? []
+      this.docsSyncStatus = statusResponse.status ?? null
+      this.populateGoogleDocsSelect()
+      this.renderGoogleDocsStatus()
+    }
+    catch (error) {
+      if (this.docsSyncStatusEl)
+        this.docsSyncStatusEl.textContent = error instanceof Error ? error.message : String(error)
+    }
+  }
+
+  async handleGoogleDocsSelectionChange(): Promise<void> {
+    if (!this.docsSyncSelectEl)
+      return
+
+    const selectedValue = this.docsSyncSelectEl.value
+    this.setDocsSyncPhase('idle')
+
+    try {
+      if (!selectedValue) {
+        await browser.runtime.sendMessage({ type: 'gdocs-sync:unbind' })
+        await this.refreshGoogleDocsBindings()
+        return
+      }
+
+      const tabId = Number(selectedValue)
+      if (!Number.isFinite(tabId))
+        return
+
+      const response = await browser.runtime.sendMessage({
+        type: 'gdocs-sync:bind-tab',
+        payload: { tabId },
+      }) as { ok: boolean, error?: string, status?: GoogleDocsSyncStatus }
+
+      if (!response.ok)
+        throw new Error(response.error ?? 'Google Docs タブのバインドに失敗しました。')
+
+      this.docsSyncStatus = response.status ?? this.docsSyncStatus
+      await this.refreshGoogleDocsBindings()
+    }
+    catch (error) {
+      this.setDocsSyncPhase('error', error instanceof Error ? error.message : String(error))
+    }
   }
 
   /**
@@ -476,59 +587,18 @@ export class WhiteboardPanel {
     }
   }
 
-  /**
-   * Gemini Nanoの可用性を設定
-   */
-  setAvailability(availability: GeminiNanoAvailability): void {
-    if (this.contentEl && availability !== 'available') {
-      this.contentEl.innerHTML = `
-        <div class="whiteboard-panel__unavailable">
-          <div class="whiteboard-panel__unavailable-icon"><span class="whiteboard-icon" role="img" aria-label="警告">${ICON_WARNING}</span></div>
-          <div class="whiteboard-panel__unavailable-title">Gemini Nano が利用できません</div>
-          <div class="whiteboard-panel__unavailable-text">
-            ${this.getAvailabilityMessage(availability)}
-          </div>
-        </div>
-      `
-    }
-  }
-
-  setProvider(provider: WhiteboardProvider): void {
-    if (!this.footerInfoEl)
-      return
-    this.footerInfoEl.textContent = provider === 'flash'
-      ? ''
-      : 'Gemini Nano で構造化'
-  }
-
-  setFlashUnavailable(message: string): void {
+  setCloudAiUnavailable(message: string): void {
     if (!this.contentEl)
       return
     this.contentEl.innerHTML = `
       <div class="whiteboard-panel__unavailable">
         <div class="whiteboard-panel__unavailable-icon"><span class="whiteboard-icon" role="img" aria-label="警告">${ICON_WARNING}</span></div>
-        <div class="whiteboard-panel__unavailable-title">Gemini Flash が利用できません</div>
+        <div class="whiteboard-panel__unavailable-title">AI 会議メモの準備がまだ完了していません</div>
         <div class="whiteboard-panel__unavailable-text">
           ${message}
         </div>
       </div>
     `
-  }
-
-  /**
-   * 可用性に応じたメッセージを取得
-   */
-  private getAvailabilityMessage(availability: GeminiNanoAvailability): string {
-    switch (availability) {
-      case 'not-supported':
-        return 'Chrome Canary/Dev で chrome://flags から「Prompt API for Gemini Nano」を有効にしてください。'
-      case 'not-ready':
-        return 'chrome://components から「Optimization Guide On Device Model」をダウンロードしてください。'
-      case 'error':
-        return 'エラーが発生しました。ブラウザを再起動してみてください。'
-      default:
-        return ''
-    }
   }
 
   /**
@@ -637,7 +707,6 @@ export class WhiteboardPanel {
     this.contentEl = null
     this.markdownViewEl = null
     this.imageViewEl = null
-    this.footerInfoEl = null
     this.debugRowEl = null
     this.debugButtonEl = null
     this.copyBtn = null

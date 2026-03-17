@@ -24,10 +24,16 @@
     "128": "assets/icon-128.png"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "debugger"
   ],
   "host_permissions": [
-    "https://meet.google.com/*"
+    "https://meet.google.com/*",
+    "https://docs.google.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://generativelanguage.googleapis.com/*"
   ],
   "content_scripts": [
     {
@@ -41,6 +47,25 @@
         "dist/contentScripts/style.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://docs.google.com/document/*"
+      ],
+      "js": [
+        "dist/contentScripts/gdocs-sync.global.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://meet.google.com/*"
+      ],
+      "js": [
+        "dist/contentScripts/gemini-bridge.global.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "web_accessible_resources": [

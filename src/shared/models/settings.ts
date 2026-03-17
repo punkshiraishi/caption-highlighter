@@ -19,15 +19,25 @@ export interface ThemeSettings {
   popupText: string
 }
 
-export type WhiteboardProvider = 'nano' | 'flash'
-
 export interface AiSettings {
-  /** ホワイトボード要約のプロバイダ（初期スコープは2択） */
-  whiteboardProvider: WhiteboardProvider
-  /** Flash 等の外部 LLM 利用に対する同意（外部送信の明示オプトイン） */
+  /** クラウドAIに字幕を送信することへの明示同意 */
   allowSendCaptionsToCloud: boolean
-  /** Flash のモデル名（将来の差し替え用） */
+  /** 内部で利用する固定モデル名 */
   flashModel: string
+}
+
+export interface GoogleDocsBinding {
+  tabId: number
+  windowId: number
+  url: string
+  title: string
+  documentId: string
+  boundAt: number
+}
+
+export interface GoogleDocsSyncSettings {
+  enabled: boolean
+  binding: GoogleDocsBinding | null
 }
 
 export interface UserSettings {
@@ -35,6 +45,7 @@ export interface UserSettings {
   matching: MatchingSettings
   theme: ThemeSettings
   ai: AiSettings
+  docsSync: GoogleDocsSyncSettings
 }
 
 export const DEFAULT_MATCHING_SETTINGS: MatchingSettings = {
@@ -53,9 +64,13 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
-  whiteboardProvider: 'nano',
   allowSendCaptionsToCloud: false,
   flashModel: GEMINI_FLASH_FIXED_MODEL,
+}
+
+export const DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS: GoogleDocsSyncSettings = {
+  enabled: false,
+  binding: null,
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
@@ -63,6 +78,14 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   matching: DEFAULT_MATCHING_SETTINGS,
   theme: DEFAULT_THEME_SETTINGS,
   ai: DEFAULT_AI_SETTINGS,
+  docsSync: DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS,
+}
+
+export function applyAiSettingsDefaults(partial?: Partial<AiSettings>): AiSettings {
+  return {
+    allowSendCaptionsToCloud: partial?.allowSendCaptionsToCloud ?? DEFAULT_AI_SETTINGS.allowSendCaptionsToCloud,
+    flashModel: partial?.flashModel ?? DEFAULT_AI_SETTINGS.flashModel,
+  }
 }
 
 export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): UserSettings {
@@ -82,6 +105,11 @@ export function applyUserSettingsDefaults(partial?: Partial<UserSettings>): User
         },
     matching: { ...DEFAULT_MATCHING_SETTINGS, ...partial?.matching },
     theme: { ...DEFAULT_THEME_SETTINGS, ...partial?.theme },
-    ai: { ...DEFAULT_AI_SETTINGS, ...partial?.ai },
+    ai: applyAiSettingsDefaults(partial?.ai),
+    docsSync: {
+      ...DEFAULT_GOOGLE_DOCS_SYNC_SETTINGS,
+      ...partial?.docsSync,
+      binding: partial?.docsSync?.binding ? { ...partial.docsSync.binding } : null,
+    },
   }
 }

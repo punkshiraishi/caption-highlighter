@@ -3,7 +3,6 @@ import { sharedConfig } from './vite.config.mjs'
 import { isDev, r } from './scripts/utils'
 import packageJson from './package.json'
 
-// Gemini Nano bridge script for MAIN world
 export default defineConfig({
   ...sharedConfig,
   define: {
@@ -20,13 +19,13 @@ export default defineConfig({
     emptyOutDir: false,
     sourcemap: isDev ? 'inline' : false,
     lib: {
-      entry: r('src/content/ai/gemini-main-world.ts'),
-      name: 'geminiBridge',
+      entry: r('src/content/docs-sync/main.ts'),
+      name: 'googleDocsSync',
       formats: ['iife'],
     },
     rollupOptions: {
       output: {
-        entryFileNames: 'gemini-bridge.global.js',
+        entryFileNames: 'gdocs-sync.global.js',
         extend: true,
       },
     },
