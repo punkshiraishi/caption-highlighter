@@ -35,9 +35,6 @@ export class WhiteboardPanel {
   private footerInfoEl: HTMLElement | null = null
   private docsSyncStatusEl: HTMLElement | null = null
   private docsSyncSelectEl: HTMLSelectElement | null = null
-  private docsSyncBindBtn: HTMLButtonElement | null = null
-  private docsSyncRefreshBtn: HTMLButtonElement | null = null
-  private docsSyncUnbindBtn: HTMLButtonElement | null = null
   private debugRowEl: HTMLElement | null = null
   private debugButtonEl: HTMLButtonElement | null = null
   private docsTabs: GoogleDocsTabSummary[] = []
@@ -163,15 +160,12 @@ export class WhiteboardPanel {
         <div class="whiteboard-panel__docs-sync">
           <div class="whiteboard-panel__docs-sync-header">
             <span>Google Docs 同期</span>
-            <span class="whiteboard-panel__docs-sync-status">未設定</span>
+            <span class="whiteboard-panel__docs-sync-status"></span>
           </div>
           <div class="whiteboard-panel__docs-sync-controls">
             <select class="whiteboard-panel__docs-sync-select">
-              <option value="">Google Docs タブを選択</option>
+              <option value="">未設定</option>
             </select>
-            <button class="whiteboard-panel__btn whiteboard-panel__btn--docs-refresh" type="button" title="一覧を更新">更新</button>
-            <button class="whiteboard-panel__btn whiteboard-panel__btn--docs-bind" type="button">同期</button>
-            <button class="whiteboard-panel__btn whiteboard-panel__btn--docs-unbind" type="button">解除</button>
           </div>
         </div>
         <div class="whiteboard-panel__debug">
@@ -190,9 +184,6 @@ export class WhiteboardPanel {
     this.footerInfoEl = this.panel.querySelector('.whiteboard-panel__footer-info')
     this.docsSyncStatusEl = this.panel.querySelector('.whiteboard-panel__docs-sync-status')
     this.docsSyncSelectEl = this.panel.querySelector('.whiteboard-panel__docs-sync-select')
-    this.docsSyncBindBtn = this.panel.querySelector('.whiteboard-panel__btn--docs-bind')
-    this.docsSyncRefreshBtn = this.panel.querySelector('.whiteboard-panel__btn--docs-refresh')
-    this.docsSyncUnbindBtn = this.panel.querySelector('.whiteboard-panel__btn--docs-unbind')
     this.debugRowEl = this.panel.querySelector('.whiteboard-panel__debug')
     this.debugButtonEl = this.panel.querySelector('.whiteboard-panel__debug-btn')
     this.copyBtn = this.panel.querySelector('.whiteboard-panel__btn--copy')
@@ -257,9 +248,7 @@ export class WhiteboardPanel {
     this.downloadBtn?.addEventListener('click', () => this.downloadImage())
 
     this.debugButtonEl?.addEventListener('click', () => this.handleSampleInject())
-    this.docsSyncRefreshBtn?.addEventListener('click', () => void this.refreshGoogleDocsBindings())
-    this.docsSyncBindBtn?.addEventListener('click', () => void this.bindSelectedGoogleDoc())
-    this.docsSyncUnbindBtn?.addEventListener('click', () => void this.unbindGoogleDoc())
+    this.docsSyncSelectEl?.addEventListener('change', () => void this.handleGoogleDocsSelectionChange())
 
     // グローバルイベント
     document.addEventListener('mousemove', e => this.onMouseMove(e))
@@ -292,31 +281,15 @@ export class WhiteboardPanel {
   }
 
   private renderGoogleDocsStatus(): void {
-    if (!this.docsSyncStatusEl || !this.docsSyncBindBtn || !this.docsSyncUnbindBtn || !this.docsSyncSelectEl)
+    if (!this.docsSyncStatusEl || !this.docsSyncSelectEl)
       return
 
-    const state = this.docsSyncStatus?.state ?? 'unbound'
-    const baseText = state === 'ready'
-      ? `接続中${this.docsSyncStatus?.binding?.title ? `: ${this.docsSyncStatus.binding.title}` : ''}`
-      : state === 'stale'
-        ? '再バインドが必要'
-        : '未設定'
+    const shouldShowError = this.docsSyncPhase === 'error' && Boolean(this.docsSyncMessage)
+    this.docsSyncStatusEl.textContent = shouldShowError ? this.docsSyncMessage ?? '' : ''
+    this.docsSyncStatusEl.dataset.phase = shouldShowError ? 'error' : 'idle'
+    this.docsSyncStatusEl.style.display = shouldShowError ? 'block' : 'none'
 
-    const phaseText = this.docsSyncPhase === 'syncing'
-      ? ' / 同期中…'
-      : this.docsSyncPhase === 'success'
-        ? this.docsSyncMessage ? ` / ${this.docsSyncMessage}` : ' / 同期済み'
-        : this.docsSyncPhase === 'error'
-          ? this.docsSyncMessage ? ` / エラー: ${this.docsSyncMessage}` : ' / エラー'
-          : ''
-
-    this.docsSyncStatusEl.textContent = `${baseText}${phaseText}`
-    this.docsSyncStatusEl.dataset.phase = this.docsSyncPhase
-
-    this.docsSyncUnbindBtn.disabled = !this.docsSyncStatus?.binding || this.docsSyncPhase === 'syncing'
-    this.docsSyncBindBtn.disabled = !this.docsSyncSelectEl.value || this.docsSyncPhase === 'syncing'
-    if (this.docsSyncRefreshBtn)
-      this.docsSyncRefreshBtn.disabled = this.docsSyncPhase === 'syncing'
+    this.docsSyncSelectEl.disabled = this.docsSyncPhase === 'syncing'
   }
 
   private populateGoogleDocsSelect(): void {
@@ -324,7 +297,7 @@ export class WhiteboardPanel {
       return
 
     const selectedValue = this.docsSyncSelectEl.value
-    this.docsSyncSelectEl.innerHTML = '<option value="">Google Docs タブを選択</option>'
+    this.docsSyncSelectEl.innerHTML = '<option value="">未設定</option>'
 
     for (const tab of this.docsTabs) {
       const option = document.createElement('option')
@@ -357,16 +330,24 @@ export class WhiteboardPanel {
     }
   }
 
-  async bindSelectedGoogleDoc(): Promise<void> {
-    if (!this.docsSyncSelectEl?.value)
+  async handleGoogleDocsSelectionChange(): Promise<void> {
+    if (!this.docsSyncSelectEl)
       return
 
-    const tabId = Number(this.docsSyncSelectEl.value)
-    if (!Number.isFinite(tabId))
-      return
+    const selectedValue = this.docsSyncSelectEl.value
+    this.setDocsSyncPhase('idle')
 
-    this.docsSyncBindBtn?.toggleAttribute('disabled', true)
     try {
+      if (!selectedValue) {
+        await browser.runtime.sendMessage({ type: 'gdocs-sync:unbind' })
+        await this.refreshGoogleDocsBindings()
+        return
+      }
+
+      const tabId = Number(selectedValue)
+      if (!Number.isFinite(tabId))
+        return
+
       const response = await browser.runtime.sendMessage({
         type: 'gdocs-sync:bind-tab',
         payload: { tabId },
@@ -379,26 +360,7 @@ export class WhiteboardPanel {
       await this.refreshGoogleDocsBindings()
     }
     catch (error) {
-      if (this.docsSyncStatusEl)
-        this.docsSyncStatusEl.textContent = error instanceof Error ? error.message : String(error)
-    }
-    finally {
-      this.renderGoogleDocsStatus()
-    }
-  }
-
-  async unbindGoogleDoc(): Promise<void> {
-    this.docsSyncUnbindBtn?.toggleAttribute('disabled', true)
-    try {
-      await browser.runtime.sendMessage({ type: 'gdocs-sync:unbind' })
-      await this.refreshGoogleDocsBindings()
-    }
-    catch (error) {
-      if (this.docsSyncStatusEl)
-        this.docsSyncStatusEl.textContent = error instanceof Error ? error.message : String(error)
-    }
-    finally {
-      this.renderGoogleDocsStatus()
+      this.setDocsSyncPhase('error', error instanceof Error ? error.message : String(error))
     }
   }
 
